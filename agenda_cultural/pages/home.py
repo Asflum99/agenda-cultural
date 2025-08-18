@@ -1,45 +1,31 @@
 import reflex as rx
-from agenda_cultural.states.state_orchestrator import EventsState
-from agenda_cultural.states.alianza_francesa_state import AlianzaFrancesaState
-from agenda_cultural.states.bnp_state import BnpState
-from agenda_cultural.states.ccpucp_state import CcpucpState
+from agenda_cultural.states.movie_loader import MovieState
+from agenda_cultural.states.alianza_francesa.state import AlianzaFrancesaState
+from agenda_cultural.states.bnp.state import BnpState
+from agenda_cultural.states.ccpucp.state import CcpucpState
+from agenda_cultural.components.movie_components import movie_section
 
 
-@rx.page("/", on_load=EventsState.load_all_events)
+@rx.page("/", on_load=MovieState.load_all_movies)
 def home() -> rx.Component:
     return rx.vstack(
         rx.heading("Agenda Cultural", size="9"),
         rx.hstack(
-            rx.vstack(
+            movie_section(
                 "Alianza Francesa",
-                rx.cond(
-                    AlianzaFrancesaState.alianza_movies_loaded,
-                    rx.foreach(
-                        AlianzaFrancesaState.alianza_movies,
-                        lambda movie: rx.text(movie),
-                    ),
-                    rx.text("Cargando1..."),
-                ),
-                align="center",
+                AlianzaFrancesaState.alianza_movies_loaded,
+                AlianzaFrancesaState.alianza_movies,
             ),
-            rx.vstack(
-                "CCPUCP",
-                rx.cond(
-                    BnpState.bnp_movies_loaded,
-                    rx.foreach(BnpState.bnp_movies, lambda movie: rx.text(movie)),
-                    rx.text("Cargando2..."),
-                ),
-                align="center",
-            ),
-            rx.vstack(
-                "Biblioteca Nacional del Perú",
-                rx.cond(
-                    CcpucpState.bnp_movies_loaded,
-                    rx.foreach(CcpucpState.bnp_movies, lambda movie: rx.text(movie)),
-                    rx.text("Cargando3..."),
-                ),
-                align="center",
-            ),
+            # movie_section(
+            #     "CCPUCP",
+            #     CcpucpState.ccpucp_movies_loaded,
+            #     CcpucpState.ccpucp_movies,
+            # ),
+            # movie_section(
+            #     "Biblioteca Nacional del Perú",
+            #     BnpState.bnp_movies_loaded,
+            #     BnpState.bnp_movies,
+            # ),
             justify="between",
             width="70%",
         ),

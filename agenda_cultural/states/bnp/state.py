@@ -5,4 +5,5 @@ class BnpState(rx.State):
     bnp_movies = []
     bnp_movies_loaded = False
     
-    
+    async def load_movies(self):
+        pass
