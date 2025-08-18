@@ -13,3 +13,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# VSCode environment
+.vscode
