@@ -6,8 +6,9 @@ from agenda_cultural.states.ccpucp.state import CcpucpState
 
 class MovieState(rx.State):
     def load_all_movies(self):
+        """Disparar tareas en paralelo"""
         return [
-            AlianzaFrancesaState.load_movies(),
-            CcpucpState.load_movies(),
-            BnpState.load_movies(),
+            AlianzaFrancesaState.load_movies,
+            BnpState.load_movies,
+            CcpucpState.load_movies,
         ]
