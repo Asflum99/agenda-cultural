@@ -16,10 +16,12 @@ class AlianzaFrancesaState(rx.State):
         """Ordena las películas por fecha de proyección"""
         return sorted(movies, key=lambda movie: self._extract_day(movie["date"]))
 
+    @rx.event(background=True)
     async def load_movies(self):
         if self.alianza_movies_loaded:
             return
         if movies := await get_movies():
-            self.alianza_movies.extend(movies)
-            self.alianza_movies = self._order_movies(self.alianza_movies)
-            self.alianza_movies_loaded = True
+            async with self:
+                self.alianza_movies.extend(movies)
+                self.alianza_movies = self._order_movies(self.alianza_movies)
+                self.alianza_movies_loaded = True

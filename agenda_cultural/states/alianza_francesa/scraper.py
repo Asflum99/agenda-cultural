@@ -8,11 +8,26 @@ ALIANZA_FRANCESA = (
 
 async def get_movies():
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-dev-shm-usage",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--disable-web-security",
+                "--disable-features=TranslateUI",
+                "--disable-ipc-flooding-protection",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
+            ],
+        )
         page = await browser.new_page()
 
         try:
-            await page.goto(ALIANZA_FRANCESA, wait_until="load")
+            await page.goto(ALIANZA_FRANCESA, wait_until="domcontentloaded")
 
             # Grupo de secciones que proyectan películas gratuitas
             cine_locators = await page.locator(
@@ -30,12 +45,15 @@ async def get_movies():
                     movie_info = await _get_movies_info(movie, page)
                     movies_info.append(movie_info)
 
-                await page.go_back(wait_until="load")
+                await page.go_back(wait_until="domcontentloaded")
 
             return movies_info
 
         except Exception as e:
             print(e)
+
+        finally:
+            await browser.close()
 
 
 async def _get_movies_info(movie: int, page: Page):
@@ -45,7 +63,7 @@ async def _get_movies_info(movie: int, page: Page):
 
         movie_info["title"] = await movie_box.locator(
             ".cajas_cont_item_fecha .cajas__fecha_txt"
-        ).inner_text()
+        ).text_content()
 
         blocks = await movie_box.locator(
             ".cajas_cont_item_info .cajas__info_fecha2"
@@ -57,7 +75,7 @@ async def _get_movies_info(movie: int, page: Page):
                 (
                     await movie_box.locator(".cajas_cont_item_info .cajas__info_fecha2")
                     .nth(block)
-                    .inner_text()
+                    .text_content()
                 )
                 .replace("\n", " ")
                 .strip()
@@ -72,4 +90,4 @@ async def _get_movies_info(movie: int, page: Page):
 
 async def _enter_movie_page(locator: int, page: Page):
     await page.locator(".ctbtn a.btn-outline-primary").nth(locator).click()
-    await page.wait_for_load_state("load")
+    await page.wait_for_load_state("domcontentloaded")
