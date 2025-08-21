@@ -1,4 +1,7 @@
+import locale
+from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
+from datetime import datetime
 
 
 ALIANZA_FRANCESA = (
@@ -61,9 +64,11 @@ async def _get_movies_info(movie: int, page: Page):
         movie_info = {}
         movie_box = page.locator(".cajas_cont_item").nth(movie)
 
-        movie_info["title"] = await movie_box.locator(
+        raw_title = await movie_box.locator(
             ".cajas_cont_item_fecha .cajas__fecha_txt"
         ).text_content()
+
+        movie_info["title"] = raw_title.replace("\n", " ").strip()
 
         blocks = await movie_box.locator(
             ".cajas_cont_item_info .cajas__info_fecha2"
@@ -81,8 +86,12 @@ async def _get_movies_info(movie: int, page: Page):
                 .strip()
             )
 
+            if keys[block] == "date":
+                info = _transform_date_to_iso(info)
+
             movie_info[keys[block]] = info
 
+        movie_info["center"] = "alianza francesa"
         return movie_info
     except Exception as e:
         print(e)
@@ -91,3 +100,33 @@ async def _get_movies_info(movie: int, page: Page):
 async def _enter_movie_page(locator: int, page: Page):
     await page.locator(".ctbtn a.btn-outline-primary").nth(locator).click()
     await page.wait_for_load_state("domcontentloaded")
+
+
+def _transform_date_to_iso(info: str):
+    locale.setlocale(locale.LC_TIME, "es_PE.utf8")
+    raw_date = info[0].lower() + info[1:]  # Transformar la primera letra en minúscula
+    raw_date = raw_date.replace("pm.", "PM").replace(
+        "am.", "AM"
+    )  # Transformar pm. y am. en AM y PM
+    raw_date = raw_date + " 2025"
+
+    formats_to_try = [
+        "%A%e de %B, %I:%M %p %Y",  # Para días con un dígito
+        "%A %d de %B, %I:%M %p %Y",  # Para días con dos dígitos
+    ]
+
+    for fmt in formats_to_try:
+        try:
+            new_date = datetime.strptime(raw_date, fmt)
+            new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
+            return new_date.isoformat()
+        except ValueError:
+            continue
+
+    raise ValueError(f"No se pudo parsear la fecha: {raw_date}")
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(get_movies())

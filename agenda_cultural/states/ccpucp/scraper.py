@@ -1,21 +1,11 @@
 import re
 from datetime import datetime
 import locale
-from contextlib import contextmanager
+from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
 
 CCPUCP = "https://centrocultural.pucp.edu.pe/cine.html"
 MOVIE_TITLE_SELECTOR = ".catItemTitle a"
-
-
-@contextmanager
-def spanish_locale():
-    old_locale = locale.getlocale(locale.LC_TIME)
-    try:
-        locale.setlocale(locale.LC_TIME, "es_PE.utf8")
-        yield
-    finally:
-        locale.setlocale(locale.LC_TIME, old_locale)
 
 
 async def get_movies():
@@ -76,21 +66,30 @@ async def _get_movies_info(movie: int, page: Page):
             )
         )
         if date_exist := await fecha_locator.text_content():
+            locale.setlocale(locale.LC_TIME, "es_PE.utf8")
             date = date_exist.split("|")[0].strip() + " 2025"
-            with spanish_locale():
-                date_object = datetime.strptime(date, "%A %d de %B %Y")
-                now = datetime.now()
+            date_object = datetime.strptime(date, "%A %d de %B %Y")
+            now = datetime.now()
 
-                if date_object > now:
-                    movie_info["date"] = date_exist.strip()
-                    movie_info["title"] = movie_title
-                    movie_info["location"] = "Av. Camino Real 1075, San Isidro"
+            if date_object > now:
+                date_exist = _transform_date_to_iso(date_exist)
+                movie_info["date"] = date_exist
+                movie_info["title"] = movie_title
+                movie_info["location"] = "Av. Camino Real 1075, San Isidro"
+                movie_info["center"] = "ccpucp"
 
-                    return movie_info
-                else:
-                    return None
+                return movie_info
+            else:
+                return None
         else:
             return None
 
     except Exception as e:
         print(e + " CCPUCP")
+
+
+def _transform_date_to_iso(date: str):
+    date = date.strip().replace("a.m.", "AM 2025").replace("p.m.", "PM 2025")
+    new_date = datetime.strptime(date, "%A %d de %B | %I:%M %p %Y")
+    new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
+    return new_date.isoformat()

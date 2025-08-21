@@ -1,14 +1,17 @@
 import reflex as rx
 
+from agenda_cultural.models import MoviesList, Movie
+from agenda_cultural.cultural_centers import CULTURAL_CENTERS
 
-def render_movie(movie: dict) -> rx.Component:
+
+def render_movie(movie: Movie) -> rx.Component:
     return rx.card(
         rx.data_list.root(
             rx.data_list.item(
                 rx.data_list.label("Película:"),
                 rx.data_list.value(
                     rx.text(
-                        movie["title"],
+                        movie.title,
                         font_weight="bold",
                     )
                 ),
@@ -17,12 +20,12 @@ def render_movie(movie: dict) -> rx.Component:
             ),
             rx.data_list.item(
                 rx.data_list.label("Fecha:"),
-                rx.data_list.value(rx.text(movie["date"], font_weight="bold")),
+                rx.data_list.value(rx.text(movie.date, font_weight="bold")),
                 style={"gap": "2px"},
             ),
             rx.data_list.item(
                 rx.data_list.label("Lugar"),
-                rx.data_list.value(rx.text(movie["location"], font_weight="bold")),
+                rx.data_list.value(rx.text(movie.location, font_weight="bold")),
                 style={"gap": "2px"},
             ),
         ),
@@ -31,13 +34,13 @@ def render_movie(movie: dict) -> rx.Component:
     )
 
 
-def movie_section(title: str, movies_loaded: bool, movies: list[dict]) -> rx.Component:
+def movie_section(center_key: str) -> rx.Component:
+    center_info = CULTURAL_CENTERS[center_key]
     return rx.vstack(
-        rx.text(title, font_weight="bold"),
-        rx.cond(
-            movies_loaded,
-            rx.foreach(movies[:5], render_movie),
-            rx.text("Cargando..."),
+        rx.text(center_info["name"], font_weight="bold"),
+        rx.foreach(
+            MoviesList.movies_by_center[center_key][:5],
+            render_movie,
         ),
         align="center",
     )

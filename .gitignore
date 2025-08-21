@@ -16,3 +16,6 @@ wheels/
 
 # VSCode environment
 .vscode
+
+# Secrets
+.env
