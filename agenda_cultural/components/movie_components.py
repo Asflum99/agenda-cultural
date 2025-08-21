@@ -1,4 +1,5 @@
 import reflex as rx
+from datetime import datetime
 
 from agenda_cultural.models import MoviesList, Movie
 from agenda_cultural.cultural_centers import CULTURAL_CENTERS
@@ -20,7 +21,15 @@ def render_movie(movie: Movie) -> rx.Component:
             ),
             rx.data_list.item(
                 rx.data_list.label("Fecha:"),
-                rx.data_list.value(rx.text(movie.date, font_weight="bold")),
+                rx.data_list.value(
+                    rx.moment(
+                        movie.date,
+                        format="dddd D [de] MMMM - h:mm A",
+                        locale="es",
+                    ),
+                    font_weight="bold",
+                    style={"text-transform": "capitalize"},  # Considerar si usarlo o no
+                ),
                 style={"gap": "2px"},
             ),
             rx.data_list.item(
