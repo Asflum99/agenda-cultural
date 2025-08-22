@@ -76,7 +76,8 @@ async def _get_movies_info(movie: int, page: Page):
             "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"
         ).text_content()
 
-        date = date_time_element.strip().replace("   ", " ")
+        if raw_date := date_time_element.strip():
+            date = raw_date.replace("   ", " ")
 
         date = _transform_date_to_iso(date)
 
@@ -123,9 +124,3 @@ def _minus_month(date: str):
     for month in months:
         if month in date:
             return date.replace(month, month.lower())
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(get_movies())

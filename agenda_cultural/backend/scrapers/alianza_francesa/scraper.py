@@ -1,4 +1,5 @@
 import locale
+import re
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
 from datetime import datetime
@@ -50,7 +51,7 @@ async def get_movies():
 
                 await page.go_back(wait_until="domcontentloaded")
 
-            return movies_info
+            return _order_movies(movies_info)
 
         except Exception as e:
             print(e)
@@ -64,11 +65,10 @@ async def _get_movies_info(movie: int, page: Page):
         movie_info = {}
         movie_box = page.locator(".cajas_cont_item").nth(movie)
 
-        raw_title = await movie_box.locator(
+        if raw_title := await movie_box.locator(
             ".cajas_cont_item_fecha .cajas__fecha_txt"
-        ).text_content()
-
-        movie_info["title"] = raw_title.replace("\n", " ").strip()
+        ).text_content():
+            movie_info["title"] = raw_title.replace("\n", " ").strip()
 
         blocks = await movie_box.locator(
             ".cajas_cont_item_info .cajas__info_fecha2"
@@ -76,15 +76,14 @@ async def _get_movies_info(movie: int, page: Page):
 
         keys = ["date", "location"]
         for block in range(blocks):
-            info = (
-                (
-                    await movie_box.locator(".cajas_cont_item_info .cajas__info_fecha2")
-                    .nth(block)
-                    .text_content()
+            if (
+                raw_info := await movie_box.locator(
+                    ".cajas_cont_item_info .cajas__info_fecha2"
                 )
-                .replace("\n", " ")
-                .strip()
-            )
+                .nth(block)
+                .text_content()
+            ):
+                info = raw_info.replace("\n", " ").strip()
 
             if keys[block] == "date":
                 info = _transform_date_to_iso(info)
@@ -92,6 +91,7 @@ async def _get_movies_info(movie: int, page: Page):
             movie_info[keys[block]] = info
 
         movie_info["center"] = "alianza francesa"
+
         return movie_info
     except Exception as e:
         print(e)
@@ -126,7 +126,12 @@ def _transform_date_to_iso(info: str):
     raise ValueError(f"No se pudo parsear la fecha: {raw_date}")
 
 
-if __name__ == "__main__":
-    import asyncio
+def _extract_day(date_str: str) -> int:
+    """Helper para extraer el día de una fecha"""
+    match = re.search(r"(\d+)\s+de", date_str)
+    return int(match.group(1)) if match else 999
 
-    asyncio.run(get_movies())
+
+def _order_movies(movies: list[dict]) -> list[dict]:
+    """Ordena las películas por fecha de proyección"""
+    return sorted(movies, key=lambda movie: _extract_day(movie["date"]))

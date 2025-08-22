@@ -1,8 +1,8 @@
 import reflex as rx
-from datetime import datetime
 
-from agenda_cultural.models import MoviesList, Movie
-from agenda_cultural.cultural_centers import CULTURAL_CENTERS
+from agenda_cultural.backend.models import Movie
+from agenda_cultural.frontend.state.movie_state import MoviesList
+from agenda_cultural.shared import get_center_info
 
 
 def render_movie(movie: Movie) -> rx.Component:
@@ -44,7 +44,7 @@ def render_movie(movie: Movie) -> rx.Component:
 
 
 def movie_section(center_key: str) -> rx.Component:
-    center_info = CULTURAL_CENTERS[center_key]
+    center_info = get_center_info(center_key)
     return rx.vstack(
         rx.text(center_info["name"], font_weight="bold"),
         rx.foreach(

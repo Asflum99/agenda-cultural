@@ -85,7 +85,7 @@ async def _get_movies_info(movie: int, page: Page):
             return None
 
     except Exception as e:
-        print(e + " CCPUCP")
+        print(e)
 
 
 def _transform_date_to_iso(date: str):
