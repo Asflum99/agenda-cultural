@@ -8,7 +8,7 @@ CCPUCP = "https://centrocultural.pucp.edu.pe/cine.html"
 MOVIE_TITLE_SELECTOR = ".catItemTitle a"
 
 
-async def get_movies():
+async def get_movies() -> list[dict]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -45,7 +45,8 @@ async def get_movies():
             return movies_info
 
         except Exception as e:
-            print(e + " CCPUCP")
+            print(e)
+            return []
 
         finally:
             await browser.close()
@@ -92,4 +93,4 @@ def _transform_date_to_iso(date: str):
     date = date.strip().replace("a.m.", "AM 2025").replace("p.m.", "PM 2025")
     new_date = datetime.strptime(date, "%A %d de %B | %I:%M %p %Y")
     new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
-    return new_date.isoformat()
+    return new_date

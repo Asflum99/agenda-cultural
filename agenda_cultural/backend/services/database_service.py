@@ -1,6 +1,7 @@
 import reflex as rx
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy import select, delete
+from zoneinfo import ZoneInfo
 from agenda_cultural.backend.models import Movie
 
 
@@ -16,12 +17,10 @@ def cleanup_past_movies():
 def has_upcoming_movies() -> bool:
     """Verifica si hay películas por proyectarse en la BD"""
     with rx.session() as session:
-        today = date.today()
-        future_movies_query = select(Movie).where(
-            Movie.date >= today.strftime("%Y-%m-%d")
-        )
-        future_movies = len(session.exec(future_movies_query).all())
-        return future_movies > 0
+        now = datetime.now(ZoneInfo("America/Lima"))
+        query = select(Movie).filter(Movie.date > now).limit(1)
+        future_movie = session.exec(query).first()  # type: ignore[call-overload]
+        return future_movie is not None
 
 
 def save_movies_to_db(movies: list[dict]):

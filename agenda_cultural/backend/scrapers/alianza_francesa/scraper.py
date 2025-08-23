@@ -1,5 +1,4 @@
 import locale
-import re
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
 from datetime import datetime
@@ -10,7 +9,7 @@ ALIANZA_FRANCESA = (
 )
 
 
-async def get_movies():
+async def get_movies() -> list[dict]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -55,6 +54,7 @@ async def get_movies():
 
         except Exception as e:
             print(e)
+            return []
 
         finally:
             await browser.close()
@@ -102,12 +102,10 @@ async def _enter_movie_page(locator: int, page: Page):
     await page.wait_for_load_state("domcontentloaded")
 
 
-def _transform_date_to_iso(info: str):
+def _transform_date_to_iso(date: str):
     locale.setlocale(locale.LC_TIME, "es_PE.utf8")
-    raw_date = info[0].lower() + info[1:]  # Transformar la primera letra en minúscula
-    raw_date = raw_date.replace("pm.", "PM").replace(
-        "am.", "AM"
-    )  # Transformar pm. y am. en AM y PM
+    raw_date = date[0].lower() + date[1:]  # Transformar la primera letra en minúscula
+    raw_date = raw_date.replace("pm.", "PM").replace("am.", "AM")
     raw_date = raw_date + " 2025"
 
     formats_to_try = [
@@ -119,19 +117,13 @@ def _transform_date_to_iso(info: str):
         try:
             new_date = datetime.strptime(raw_date, fmt)
             new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
-            return new_date.isoformat()
+            return new_date
         except ValueError:
             continue
 
     raise ValueError(f"No se pudo parsear la fecha: {raw_date}")
 
 
-def _extract_day(date_str: str) -> int:
-    """Helper para extraer el día de una fecha"""
-    match = re.search(r"(\d+)\s+de", date_str)
-    return int(match.group(1)) if match else 999
-
-
 def _order_movies(movies: list[dict]) -> list[dict]:
     """Ordena las películas por fecha de proyección"""
-    return sorted(movies, key=lambda movie: _extract_day(movie["date"]))
+    return sorted(movies, key=lambda movie: movie["date"])

@@ -22,7 +22,7 @@ def render_movie(movie: Movie) -> rx.Component:
             rx.data_list.item(
                 rx.data_list.label("Fecha:"),
                 rx.data_list.value(
-                    rx.moment(
+                    rx.moment(  # type: ignore[operator]
                         movie.date,
                         format="dddd D [de] MMMM - h:mm A",
                         locale="es",

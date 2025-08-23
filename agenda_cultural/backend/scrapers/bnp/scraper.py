@@ -8,7 +8,7 @@ BNP = "https://eventos.bnp.gob.pe/externo/inicio"
 MOVIE_BLOCK = ".no-padding.portfolio"
 
 
-async def get_movies():
+async def get_movies() -> list[dict]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -55,6 +55,8 @@ async def get_movies():
 
         except Exception as e:
             print(e)
+            return []
+
         finally:
             await browser.close()
 
@@ -72,16 +74,14 @@ async def _get_movies_info(movie: int, page: Page):
         movie_info["title"] = await new_page.locator(
             "#ContentPlaceHolder1_gpCabecera h1"
         ).text_content()
-        date_time_element = await new_page.locator(
+
+        if date_time_element := await new_page.locator(
             "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"
-        ).text_content()
-
-        if raw_date := date_time_element.strip():
+        ).text_content():
+            raw_date = date_time_element.strip()
             date = raw_date.replace("   ", " ")
-
-        date = _transform_date_to_iso(date)
-
-        movie_info["date"] = date
+            date = _transform_date_to_iso(date)
+            movie_info["date"] = date
 
         movie_info["location"] = await new_page.locator(
             "#ContentPlaceHolder1_gpUbicacion p"
@@ -103,7 +103,7 @@ def _transform_date_to_iso(date: str):
     date = _minus_month(date)
     new_date = datetime.strptime(date, "%A, %d de %B del %Y%l:%M%p")
     new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
-    return new_date.isoformat()
+    return new_date
 
 
 def _minus_month(date: str):
