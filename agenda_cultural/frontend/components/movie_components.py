@@ -46,11 +46,16 @@ def render_movie(movie: Movie) -> rx.Component:
 
 def movie_section(center_key: str) -> rx.Component:
     center_info: dict[str, str] = get_center_info(center_key)
-    return rx.vstack(
-        rx.text(center_info["name"], font_weight="bold"),
-        rx.foreach(
-            MoviesList.movies_by_center[center_key][:5],
-            render_movie,
+    movies = MoviesList.movies_by_center[center_key][:5]
+    return rx.cond(
+        movies,
+        rx.vstack(
+            rx.text(center_info["name"], font_weight="bold"),
+            rx.foreach(
+                movies,
+                render_movie,
+            ),
+            align="center",
         ),
-        align="center",
+        rx.fragment(),
     )
