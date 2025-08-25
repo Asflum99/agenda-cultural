@@ -1,19 +1,16 @@
 import asyncio
-from agenda_cultural.backend.scrapers.alianza_francesa import get_af_movies
-from agenda_cultural.backend.scrapers.bnp import get_bnp_movies
-from agenda_cultural.backend.scrapers.ccpucp import get_ccpucp_movies
+from agenda_cultural.backend.scrapers import all_scrapers
+from agenda_cultural.backend.models import Movie
 
 
-async def scrape_all_movies() -> list[dict]:
+async def scrape_all_movies() -> list[Movie]:
     """Ejecuta todos los scrapers en paralelo"""
     results = await asyncio.gather(
-        get_af_movies(),
-        get_bnp_movies(),
-        get_ccpucp_movies(),
+        *(scraper() for scraper in all_scrapers),
         return_exceptions=True,
     )
 
-    movies = []
+    movies: list[Movie] = []
     for result in results:
         if isinstance(result, list) and result:
             movies.extend(result)

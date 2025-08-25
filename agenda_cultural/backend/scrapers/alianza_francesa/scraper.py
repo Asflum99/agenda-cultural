@@ -2,6 +2,7 @@ import locale
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
 from datetime import datetime
+from agenda_cultural.backend.models import Movie
 
 
 ALIANZA_FRANCESA = (
@@ -9,7 +10,7 @@ ALIANZA_FRANCESA = (
 )
 
 
-async def get_movies() -> list[dict]:
+async def get_movies() -> list[Movie]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -30,14 +31,14 @@ async def get_movies() -> list[dict]:
         page = await browser.new_page()
 
         try:
-            await page.goto(ALIANZA_FRANCESA, wait_until="domcontentloaded")
+            _ = await page.goto(ALIANZA_FRANCESA, wait_until="domcontentloaded")
 
             # Grupo de secciones que proyectan películas gratuitas
             cine_locators = await page.locator(
                 ".ctbtn", has_text="Ingreso libre"
             ).count()
 
-            movies_info: list[dict] = []
+            movies_info: list[Movie] = []
 
             for locator in range(cine_locators):
                 await _enter_movie_page(locator, page)
@@ -45,10 +46,10 @@ async def get_movies() -> list[dict]:
                 movies = await page.locator(".cajas_cont_item").count()
 
                 for movie in range(movies):
-                    movie_info = await _get_movies_info(movie, page)
-                    movies_info.append(movie_info)
+                    if movie_info := await _get_movies_info(movie, page):
+                        movies_info.append(movie_info)
 
-                await page.go_back(wait_until="domcontentloaded")
+                _ = await page.go_back(wait_until="domcontentloaded")
 
             return _order_movies(movies_info)
 
@@ -62,13 +63,13 @@ async def get_movies() -> list[dict]:
 
 async def _get_movies_info(movie: int, page: Page):
     try:
-        movie_info = {}
+        movie_obj = Movie()
         movie_box = page.locator(".cajas_cont_item").nth(movie)
 
         if raw_title := await movie_box.locator(
             ".cajas_cont_item_fecha .cajas__fecha_txt"
         ).text_content():
-            movie_info["title"] = raw_title.replace("\n", " ").strip()
+            movie_obj.title = raw_title.replace("\n", " ").strip()
 
         blocks = await movie_box.locator(
             ".cajas_cont_item_info .cajas__info_fecha2"
@@ -85,14 +86,15 @@ async def _get_movies_info(movie: int, page: Page):
             ):
                 info = raw_info.replace("\n", " ").strip()
 
-            if keys[block] == "date":
-                info = _transform_date_to_iso(info)
+                if keys[block] == "date":
+                    info = _transform_date_to_iso(info)
+                    movie_obj.date = info
+                else:
+                    movie_obj.location = info
 
-            movie_info[keys[block]] = info
+        movie_obj.center = "alianza francesa"
 
-        movie_info["center"] = "alianza francesa"
-
-        return movie_info
+        return movie_obj
     except Exception as e:
         print(e)
 
@@ -103,7 +105,7 @@ async def _enter_movie_page(locator: int, page: Page):
 
 
 def _transform_date_to_iso(date: str):
-    locale.setlocale(locale.LC_TIME, "es_PE.utf8")
+    _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")
     raw_date = date[0].lower() + date[1:]  # Transformar la primera letra en minúscula
     raw_date = raw_date.replace("pm.", "PM").replace("am.", "AM")
     raw_date = raw_date + " 2025"
@@ -124,6 +126,8 @@ def _transform_date_to_iso(date: str):
     raise ValueError(f"No se pudo parsear la fecha: {raw_date}")
 
 
-def _order_movies(movies: list[dict]) -> list[dict]:
+def _order_movies(
+    movies: list[Movie],
+) -> list[Movie]:
     """Ordena las películas por fecha de proyección"""
-    return sorted(movies, key=lambda movie: movie["date"])
+    return sorted(movies, key=lambda movie: Movie.date)

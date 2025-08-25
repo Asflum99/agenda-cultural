@@ -6,6 +6,6 @@ def get_all_center_keys() -> list[str]:
     return list(CULTURAL_CENTERS.keys())
 
 
-def get_center_info(center_key: str) -> dict:
+def get_center_info(center_key: str) -> dict[str, str]:
     """Obtiene toda la información del centro cultural."""
     return CULTURAL_CENTERS.get(center_key, {})

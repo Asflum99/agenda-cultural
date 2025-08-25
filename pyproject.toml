@@ -15,6 +15,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.31.3",
     "mypy>=1.17.1",
     "pytest>=8.4.1",
     "pytest-coverage>=0.0",
@@ -22,6 +23,5 @@ dev = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Archivos de inicialización
 "agenda_cultural.py" = ["F401"]  # Tu archivo principal
 "**/models/*.py" = ["F401"]  # Archivos de modelos (por side effects)

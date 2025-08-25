@@ -2,13 +2,14 @@ import locale
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
+from agenda_cultural.backend.models import Movie
 
 
 BNP = "https://eventos.bnp.gob.pe/externo/inicio"
 MOVIE_BLOCK = ".no-padding.portfolio"
 
 
-async def get_movies() -> list[dict]:
+async def get_movies() -> list[Movie]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -29,13 +30,13 @@ async def get_movies() -> list[dict]:
         page = await browser.new_page()
 
         try:
-            await page.goto(BNP, wait_until="load")
+            _ = await page.goto(BNP, wait_until="load")
 
             initial_count = await page.locator(MOVIE_BLOCK).count()
 
-            await page.select_option("select#ContentPlaceHolder1_cboCategoria", "1")
+            _ = await page.select_option("select#ContentPlaceHolder1_cboCategoria", "1")
             await page.locator("a#ContentPlaceHolder1_btnBuscarEventos").click()
-            await page.wait_for_function(
+            _ = await page.wait_for_function(
                 f"""
                 () => {{
                     const currentCount = document.querySelectorAll('{MOVIE_BLOCK}').length;
@@ -45,11 +46,11 @@ async def get_movies() -> list[dict]:
             )
             movies = await page.locator(MOVIE_BLOCK).count()
 
-            movies_info: list[dict] = []
+            movies_info: list[Movie] = []
 
             for movie in range(movies):
-                movie_info = await _get_movies_info(movie, page)
-                movies_info.append(movie_info)
+                if movie_info := await _get_movies_info(movie, page):
+                    movies_info.append(movie_info)
 
             return movies_info
 
@@ -63,7 +64,7 @@ async def get_movies() -> list[dict]:
 
 async def _get_movies_info(movie: int, page: Page):
     try:
-        movie_info = {}
+        movie_obj = Movie()
 
         async with page.context.expect_page() as new_page_info:
             await page.locator(MOVIE_BLOCK).nth(movie).click()
@@ -71,9 +72,10 @@ async def _get_movies_info(movie: int, page: Page):
         new_page = await new_page_info.value
         await new_page.wait_for_load_state("load")
 
-        movie_info["title"] = await new_page.locator(
+        if title := await new_page.locator(
             "#ContentPlaceHolder1_gpCabecera h1"
-        ).text_content()
+        ).text_content():
+            movie_obj.title = title
 
         if date_time_element := await new_page.locator(
             "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"
@@ -81,24 +83,25 @@ async def _get_movies_info(movie: int, page: Page):
             raw_date = date_time_element.strip()
             date = raw_date.replace("   ", " ")
             date = _transform_date_to_iso(date)
-            movie_info["date"] = date
+            movie_obj.date = date
 
-        movie_info["location"] = await new_page.locator(
+        if location := await new_page.locator(
             "#ContentPlaceHolder1_gpUbicacion p"
-        ).text_content()
+        ).text_content():
+            movie_obj.location = location
 
-        movie_info["center"] = "bnp"
+        movie_obj.center = "bnp"
 
         await new_page.close()
 
-        return movie_info
+        return movie_obj
 
     except Exception as e:
         print(e)
 
 
 def _transform_date_to_iso(date: str):
-    locale.setlocale(locale.LC_TIME, "es_PE.utf8")
+    _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")
     date = date[0].lower() + date[1:]
     date = _minus_month(date)
     new_date = datetime.strptime(date, "%A, %d de %B del %Y%l:%M%p")

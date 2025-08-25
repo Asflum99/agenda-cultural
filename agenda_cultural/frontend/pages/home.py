@@ -1,5 +1,6 @@
+# pyright: reportUnknownMemberType=false
 import reflex as rx
-from agenda_cultural.frontend.components.movie_components import movie_section
+from agenda_cultural.frontend.components import movie_section
 from agenda_cultural.frontend.state.movie_state import MoviesList
 from agenda_cultural.shared import get_all_center_keys
 

@@ -3,12 +3,13 @@ from datetime import datetime
 import locale
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
+from agenda_cultural.backend.models import Movie
 
 CCPUCP = "https://centrocultural.pucp.edu.pe/cine.html"
 MOVIE_TITLE_SELECTOR = ".catItemTitle a"
 
 
-async def get_movies() -> list[dict]:
+async def get_movies() -> list[Movie]:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -29,18 +30,18 @@ async def get_movies() -> list[dict]:
         page = await browser.new_page()
 
         try:
-            await page.goto(CCPUCP, wait_until="load")
+            _ = await page.goto(CCPUCP, wait_until="load")
 
             await page.locator("a.subCategoryImage").click()
             await page.wait_for_load_state("load")
             movies = await page.locator(MOVIE_TITLE_SELECTOR).count()
 
-            movies_info: list[dict] = []
+            movies_info: list[Movie] = []
 
             for movie in range(movies):
                 if movie_info := await _get_movies_info(movie, page):
                     movies_info.append(movie_info)
-                await page.go_back(wait_until="load")
+                _ = await page.go_back(wait_until="load")
 
             return movies_info
 
@@ -54,7 +55,7 @@ async def get_movies() -> list[dict]:
 
 async def _get_movies_info(movie: int, page: Page):
     try:
-        movie_info = {}
+        movie_obj = Movie()
 
         movie_title = await page.locator(MOVIE_TITLE_SELECTOR).nth(movie).inner_text()
         await page.locator(MOVIE_TITLE_SELECTOR).nth(movie).click()
@@ -67,19 +68,19 @@ async def _get_movies_info(movie: int, page: Page):
             )
         )
         if date_exist := await fecha_locator.text_content():
-            locale.setlocale(locale.LC_TIME, "es_PE.utf8")
+            _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")
             date = date_exist.split("|")[0].strip() + " 2025"
             date_object = datetime.strptime(date, "%A %d de %B %Y")
             now = datetime.now()
 
             if date_object > now:
                 date_exist = _transform_date_to_iso(date_exist)
-                movie_info["date"] = date_exist
-                movie_info["title"] = movie_title
-                movie_info["location"] = "Av. Camino Real 1075, San Isidro"
-                movie_info["center"] = "ccpucp"
+                movie_obj.date = date_exist
+                movie_obj.title = movie_title
+                movie_obj.location = "Av. Camino Real 1075, San Isidro"
+                movie_obj.center = "ccpucp"
 
-                return movie_info
+                return movie_obj
             else:
                 return None
         else:

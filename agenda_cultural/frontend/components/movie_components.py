@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false
 import reflex as rx
 
 from agenda_cultural.backend.models import Movie
@@ -22,7 +23,7 @@ def render_movie(movie: Movie) -> rx.Component:
             rx.data_list.item(
                 rx.data_list.label("Fecha:"),
                 rx.data_list.value(
-                    rx.moment(  # type: ignore[operator]
+                    rx.moment(
                         movie.date,
                         format="dddd D [de] MMMM - h:mm A",
                         locale="es",
@@ -44,7 +45,7 @@ def render_movie(movie: Movie) -> rx.Component:
 
 
 def movie_section(center_key: str) -> rx.Component:
-    center_info = get_center_info(center_key)
+    center_info: dict[str, str] = get_center_info(center_key)
     return rx.vstack(
         rx.text(center_info["name"], font_weight="bold"),
         rx.foreach(
