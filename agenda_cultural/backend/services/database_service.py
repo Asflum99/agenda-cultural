@@ -9,7 +9,8 @@ def cleanup_past_movies():
     with rx.session() as session:
         today = datetime.now(ZoneInfo("America/Lima"))
         movies = session.exec(Movie.select().where(Movie.date < today)).all()
-        session.delete(movies)
+        for movie in movies:
+            session.delete(movie)
         session.commit()
 
 
