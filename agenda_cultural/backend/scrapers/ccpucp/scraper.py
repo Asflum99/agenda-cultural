@@ -76,7 +76,7 @@ async def _get_movies_info(movie: int, page: Page):
             if date_object > now:
                 date_exist = _transform_date_to_iso(date_exist)
                 movie_obj.date = date_exist
-                movie_obj.title = movie_title
+                movie_obj.title = _clean_title(movie_title)
                 movie_obj.location = "Av. Camino Real 1075, San Isidro"
                 movie_obj.center = "ccpucp"
 
@@ -95,3 +95,10 @@ def _transform_date_to_iso(date: str):
     new_date = datetime.strptime(date, "%A %d de %B | %I:%M %p %Y")
     new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
     return new_date
+
+
+def _clean_title(movie_title: str):
+    movie = movie_title.lower()
+    movie_words = movie.split()
+    movie_words[0] = movie_words[0].capitalize()
+    return " ".join(movie_words)

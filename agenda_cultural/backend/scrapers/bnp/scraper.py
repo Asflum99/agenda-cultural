@@ -1,4 +1,5 @@
 import locale
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright, Page
@@ -7,6 +8,7 @@ from agenda_cultural.backend.models import Movie
 
 BNP = "https://eventos.bnp.gob.pe/externo/inicio"
 MOVIE_BLOCK = ".no-padding.portfolio"
+MOVIE_TITLE_PATTERN = r"(.+?)(\s\(\d+\))"
 
 
 async def get_movies() -> list[Movie]:
@@ -75,7 +77,8 @@ async def _get_movies_info(movie: int, page: Page):
         if title := await new_page.locator(
             "#ContentPlaceHolder1_gpCabecera h1"
         ).text_content():
-            movie_obj.title = title
+            if match := re.match(MOVIE_TITLE_PATTERN, title):
+                movie_obj.title = match.group(1)
 
         if date_time_element := await new_page.locator(
             "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"

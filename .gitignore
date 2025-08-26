@@ -3,6 +3,7 @@
 assets/external/
 .web
 *.py[cod]
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -16,6 +17,7 @@ wheels/
 
 # VSCode environment
 .vscode
+.dev_tools/
 
 # Secrets
 .env
