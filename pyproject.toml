@@ -9,7 +9,7 @@ dependencies = [
     "playwright>=1.54.0",
     "psycopg2-binary>=2.9.10",
     "python-dotenv>=1.1.1",
-    "reflex>=0.8.7",
+    "reflex>=0.8.8",
     "sqlalchemy>=2.0.43",
 ]
 
@@ -17,7 +17,9 @@ dependencies = [
 dev = [
     "basedpyright>=1.31.3",
     "mypy>=1.17.1",
+    "pudb>=2025.1",
     "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
     "pytest-coverage>=0.0",
     "ruff>=0.12.10",
 ]
@@ -25,3 +27,12 @@ dev = [
 [tool.ruff.lint.per-file-ignores]
 "agenda_cultural.py" = ["F401"]  # Tu archivo principal
 "**/models/*.py" = ["F401"]  # Archivos de modelos (por side effects)
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests", 
+    "real_data: marks tests that use real web data"
+]
