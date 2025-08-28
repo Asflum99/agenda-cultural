@@ -68,6 +68,7 @@ class BnpScraper(ScraperInterface):
             if location := await new_page.locator(
                 "#ContentPlaceHolder1_gpUbicacion p"
             ).text_content():
+                location = self._clean_location(location)
                 movie_obj.location = location
 
             movie_obj.center = "bnp"
@@ -78,6 +79,15 @@ class BnpScraper(ScraperInterface):
 
         except Exception as e:
             print(e)
+
+    def _clean_location(self, location: str):
+        pos = location.find("Biblioteca")
+        if pos != -1:
+            result = location[pos:]
+            result = result.replace(",", " -")
+            return result
+        else:
+            return location
 
     def _transform_date_to_iso(self, date: str):
         _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")

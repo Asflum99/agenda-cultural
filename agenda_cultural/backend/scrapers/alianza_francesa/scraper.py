@@ -78,7 +78,7 @@ async def _get_movies_info(movie: int, page: Page):
                     info = _transform_date_to_iso(info)
                     movie_obj.date = info
                 else:
-                    movie_obj.location = info
+                    movie_obj.location = info.replace("(", "- ").replace(")", "")
 
         movie_obj.center = "alianza francesa"
 

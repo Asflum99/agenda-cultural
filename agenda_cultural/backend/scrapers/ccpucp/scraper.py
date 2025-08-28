@@ -75,7 +75,7 @@ async def _get_movies_info(movie: int, page: Page):
                 date_exist = _transform_date_to_iso(date_exist)
                 movie_obj.date = date_exist
                 movie_obj.title = _clean_title(movie_title)
-                movie_obj.location = "Av. Camino Real 1075, San Isidro"
+                movie_obj.location = "CCPUCP - Av. Camino Real 1075, San Isidro"
                 movie_obj.center = "ccpucp"
 
                 return movie_obj
