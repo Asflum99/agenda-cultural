@@ -1,4 +1,6 @@
-from .scraper import get_movies as get_bnp_movies
+from .scraper import BnpScraper
+
+get_bnp_movies = BnpScraper().get_movies
 
 
 __all__ = ["get_bnp_movies"]

@@ -2,55 +2,48 @@ import re
 from datetime import datetime
 import locale
 from zoneinfo import ZoneInfo
+from typing import override
 from playwright.async_api import async_playwright, Page
 from agenda_cultural.backend.models import Movie
+from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 
 CCPUCP = "https://centrocultural.pucp.edu.pe/cine.html"
 MOVIE_TITLE_SELECTOR = ".catItemTitle a"
 
 
-async def get_movies() -> list[Movie]:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-dev-shm-usage",
-                "--disable-extensions",
-                "--disable-gpu",
-                "--disable-web-security",
-                "--disable-features=TranslateUI",
-                "--disable-ipc-flooding-protection",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-            ],
-        )
-        page = await browser.new_page()
+class CcpucpScraper(ScraperInterface):
+    @override
+    async def get_movies(self):
+        async with async_playwright() as p:
+            browser, page = await self.setup_browser_and_open_page(p)
 
-        try:
-            _ = await page.goto(CCPUCP, wait_until="load")
+            try:
+                _ = await page.goto(CCPUCP, wait_until="load")
 
-            await page.locator("a.subCategoryImage").click()
-            await page.wait_for_load_state("load")
-            movies = await page.locator(MOVIE_TITLE_SELECTOR).count()
+                movies_block = await page.locator("a.subCategoryImage").count()
 
-            movies_info: list[Movie] = []
+                movies_info: list[Movie] = []
 
-            for movie in range(movies):
-                if movie_info := await _get_movies_info(movie, page):
-                    movies_info.append(movie_info)
-                _ = await page.go_back(wait_until="load")
+                for movie_block in range(movies_block):
+                    await page.locator("a.subCategoryImage").nth(movie_block).click()
+                    await page.wait_for_load_state("load")
+                    movies = await page.locator(MOVIE_TITLE_SELECTOR).count()
 
-            return movies_info
+                    for movie in range(movies):
+                        if movie_info := await _get_movies_info(movie, page):
+                            movies_info.append(movie_info)
+                        _ = await page.go_back(wait_until="load")
 
-        except Exception as e:
-            print(e)
-            return []
+                    _ = await page.go_back(wait_until="load")
 
-        finally:
-            await browser.close()
+                return movies_info
+
+            except Exception as e:
+                print(e)
+                return [Movie()]
+
+            finally:
+                await browser.close()
 
 
 async def _get_movies_info(movie: int, page: Page):
@@ -60,6 +53,11 @@ async def _get_movies_info(movie: int, page: Page):
         movie_title = await page.locator(MOVIE_TITLE_SELECTOR).nth(movie).inner_text()
         await page.locator(MOVIE_TITLE_SELECTOR).nth(movie).click()
         await page.wait_for_load_state("load")
+
+        # Verificar si la película es con entradas
+        if await page.locator('p:has(span b:has-text("ENTRADAS"))').count() > 0:
+            return None
+
         fecha_locator = page.locator(
             'p:has(span strong:text("FUNCIONES")) span'
         ).filter(
@@ -91,6 +89,7 @@ async def _get_movies_info(movie: int, page: Page):
 
 
 def _transform_date_to_iso(date: str):
+    _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")
     date = date.strip().replace("a.m.", "AM 2025").replace("p.m.", "PM 2025")
     new_date = datetime.strptime(date, "%A %d de %B | %I:%M %p %Y")
     new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))

@@ -2,131 +2,128 @@ import locale
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from typing import override
 from playwright.async_api import async_playwright, Page
 from agenda_cultural.backend.models import Movie
+from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 
 
-BNP = "https://eventos.bnp.gob.pe/externo/inicio"
-MOVIE_BLOCK = ".no-padding.portfolio"
-MOVIE_TITLE_PATTERN = r"(.+?)(\s\(\d+\))"
+class BnpScraper(ScraperInterface):
+    BNP: str = "https://eventos.bnp.gob.pe/externo/inicio"
+    MOVIE_BLOCK: str = ".no-padding.portfolio"
+    MOVIE_TITLE_PATTERN: str = r"(.+?)(\s\(\d+\))"
 
+    @override
+    async def get_movies(self):
+        async with async_playwright() as p:
+            browser, page = await self.setup_browser_and_open_page(p)
 
-async def get_movies() -> list[Movie]:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-dev-shm-usage",
-                "--disable-extensions",
-                "--disable-gpu",
-                "--disable-web-security",
-                "--disable-features=TranslateUI",
-                "--disable-ipc-flooding-protection",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-            ],
-        )
-        page = await browser.new_page()
+            try:
+                movies = await self._count_movies(page)
 
+                movies_info: list[Movie] = []
+
+                for movie in range(movies):
+                    if movie_info := await self._get_movies_info(movie, page):
+                        movies_info.append(movie_info)
+
+                return movies_info
+
+            except Exception as e:
+                print(e)
+                return [Movie()]
+
+            finally:
+                await browser.close()
+
+    async def _get_movies_info(self, movie: int, page: Page):
         try:
-            _ = await page.goto(BNP, wait_until="load")
+            movie_obj = Movie()
 
-            initial_count = await page.locator(MOVIE_BLOCK).count()
+            async with page.context.expect_page() as new_page_info:
+                await page.locator(self.MOVIE_BLOCK).nth(movie).click()
 
-            _ = await page.select_option("select#ContentPlaceHolder1_cboCategoria", "1")
-            await page.locator("a#ContentPlaceHolder1_btnBuscarEventos").click()
-            _ = await page.wait_for_function(
-                f"""
-                () => {{
-                    const currentCount = document.querySelectorAll('{MOVIE_BLOCK}').length;
-                    return currentCount !== {initial_count} && currentCount > 0;
-                }}
-                """
-            )
-            movies = await page.locator(MOVIE_BLOCK).count()
+            new_page = await new_page_info.value
+            await new_page.wait_for_load_state("load")
 
-            movies_info: list[Movie] = []
+            if title := await new_page.locator(
+                "#ContentPlaceHolder1_gpCabecera h1"
+            ).text_content():
+                if match := re.match(self.MOVIE_TITLE_PATTERN, title):
+                    movie_obj.title = match.group(1)
 
-            for movie in range(movies):
-                if movie_info := await _get_movies_info(movie, page):
-                    movies_info.append(movie_info)
+            if date_time_element := await new_page.locator(
+                "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"
+            ).text_content():
+                raw_date = date_time_element.strip()
+                date = raw_date.replace("   ", " ")
+                date = self._transform_date_to_iso(date)
 
-            return movies_info
+                # Confirmar si la película ya se proyectó, ya que BNP muestra películas ya proyectadas
+                if date < datetime.now(tz=ZoneInfo("America/Lima")):
+                    return None
+
+                movie_obj.date = date
+
+            if location := await new_page.locator(
+                "#ContentPlaceHolder1_gpUbicacion p"
+            ).text_content():
+                movie_obj.location = location
+
+            movie_obj.center = "bnp"
+
+            await new_page.close()
+
+            return movie_obj
 
         except Exception as e:
             print(e)
-            return []
 
-        finally:
-            await browser.close()
+    def _transform_date_to_iso(self, date: str):
+        _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")
+        date = date[0].lower() + date[1:]
+        date = self._minus_month(date)
+        new_date = datetime.strptime(date, "%A, %d de %B del %Y %-I:%M%p")
+        new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
+        return new_date
 
+    def _minus_month(self, date: str):
+        months = {
+            "Enero": "enero",
+            "Febrero": "febrero",
+            "Marzo": "marzo",
+            "Abril": "abril",
+            "Mayo": "mayo",
+            "Junio": "junio",
+            "Julio": "julio",
+            "Agosto": "agosto",
+            "Septiembre": "setiembre",
+            "Octubre": "octubre",
+            "Noviembre": "noviembre",
+            "Diciembre": "diciembre",
+        }
+        for original_month, system_month in months.items():
+            if original_month in date:
+                return date.replace(original_month, system_month)
 
-async def _get_movies_info(movie: int, page: Page):
-    try:
-        movie_obj = Movie()
+        raise ValueError(f"No se pudo parsear la fecha: {date}")
 
-        async with page.context.expect_page() as new_page_info:
-            await page.locator(MOVIE_BLOCK).nth(movie).click()
+    async def _count_movies(self, page: Page):
+        _ = await page.goto(self.BNP, wait_until="load")
 
-        new_page = await new_page_info.value
-        await new_page.wait_for_load_state("load")
+        initial_count = await page.locator(self.MOVIE_BLOCK).count()
 
-        if title := await new_page.locator(
-            "#ContentPlaceHolder1_gpCabecera h1"
-        ).text_content():
-            if match := re.match(MOVIE_TITLE_PATTERN, title):
-                movie_obj.title = match.group(1)
+        _ = await page.select_option("select#ContentPlaceHolder1_cboCategoria", "1")
 
-        if date_time_element := await new_page.locator(
-            "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"
-        ).text_content():
-            raw_date = date_time_element.strip()
-            date = raw_date.replace("   ", " ")
-            date = _transform_date_to_iso(date)
-            movie_obj.date = date
+        await page.locator("a#ContentPlaceHolder1_btnBuscarEventos").click()
 
-        if location := await new_page.locator(
-            "#ContentPlaceHolder1_gpUbicacion p"
-        ).text_content():
-            movie_obj.location = location
+        _ = await page.wait_for_function(
+            f"""
+            () => {{
+                const currentCount = document.querySelectorAll('{self.MOVIE_BLOCK}').length;
+                return currentCount !== {initial_count};
+            }}
+            """
+        )
 
-        movie_obj.center = "bnp"
-
-        await new_page.close()
-
-        return movie_obj
-
-    except Exception as e:
-        print(e)
-
-
-def _transform_date_to_iso(date: str):
-    _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")
-    date = date[0].lower() + date[1:]
-    date = _minus_month(date)
-    new_date = datetime.strptime(date, "%A, %d de %B del %Y%l:%M%p")
-    new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
-    return new_date
-
-
-def _minus_month(date: str):
-    months = [
-        "Enero",
-        "Febrero",
-        "Marzo",
-        "Abril",
-        "Mayo",
-        "Junio",
-        "Julio",
-        "Agosto",
-        "Septiembre",
-        "Octubre",
-        "Noviembre",
-        "Diciembre",
-    ]
-    for month in months:
-        if month in date:
-            return date.replace(month, month.lower())
+        return await page.locator(self.MOVIE_BLOCK).count()

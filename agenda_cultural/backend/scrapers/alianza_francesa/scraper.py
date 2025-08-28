@@ -1,8 +1,11 @@
 import locale
 from zoneinfo import ZoneInfo
+from typing import override
 from playwright.async_api import async_playwright, Page
+from playwright.async_api import Locator
 from datetime import datetime
 from agenda_cultural.backend.models import Movie
+from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 
 
 ALIANZA_FRANCESA = (
@@ -10,55 +13,40 @@ ALIANZA_FRANCESA = (
 )
 
 
-async def get_movies() -> list[Movie]:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-dev-shm-usage",
-                "--disable-extensions",
-                "--disable-gpu",
-                "--disable-web-security",
-                "--disable-features=TranslateUI",
-                "--disable-ipc-flooding-protection",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-            ],
-        )
-        page = await browser.new_page()
+class AlianzaFrancesaScraper(ScraperInterface):
+    @override
+    async def get_movies(self) -> list[Movie]:
+        async with async_playwright() as p:
+            browser, page = await self.setup_browser_and_open_page(p)
 
-        try:
-            _ = await page.goto(ALIANZA_FRANCESA, wait_until="domcontentloaded")
+            try:
+                _ = await page.goto(ALIANZA_FRANCESA, wait_until="domcontentloaded")
 
-            # Grupo de secciones que proyectan películas gratuitas
-            cine_locators = await page.locator(
-                ".ctbtn", has_text="Ingreso libre"
-            ).count()
+                # Grupo de secciones que proyectan películas gratuitas
+                free_movies = page.locator(".ctbtn", has_text="Ingreso libre")
+                cine_locators = await free_movies.count()
 
-            movies_info: list[Movie] = []
+                movies_info: list[Movie] = []
 
-            for locator in range(cine_locators):
-                await _enter_movie_page(locator, page)
+                for locator in range(cine_locators):
+                    await _enter_movie_page(locator, page, free_movies)
 
-                movies = await page.locator(".cajas_cont_item").count()
+                    movies = await page.locator(".cajas_cont_item").count()
 
-                for movie in range(movies):
-                    if movie_info := await _get_movies_info(movie, page):
-                        movies_info.append(movie_info)
+                    for movie in range(movies):
+                        if movie_info := await _get_movies_info(movie, page):
+                            movies_info.append(movie_info)
 
-                _ = await page.go_back(wait_until="domcontentloaded")
+                    _ = await page.go_back(wait_until="domcontentloaded")
 
-            return _order_movies(movies_info)
+                return _order_movies(movies_info)
 
-        except Exception as e:
-            print(e)
-            return []
+            except Exception as e:
+                print(e)
+                return []
 
-        finally:
-            await browser.close()
+            finally:
+                await browser.close()
 
 
 async def _get_movies_info(movie: int, page: Page):
@@ -99,8 +87,8 @@ async def _get_movies_info(movie: int, page: Page):
         print(e)
 
 
-async def _enter_movie_page(locator: int, page: Page):
-    await page.locator(".ctbtn a.btn-outline-primary").nth(locator).click()
+async def _enter_movie_page(locator: int, page: Page, free_movies: Locator):
+    await free_movies.locator("a.btn-outline-primary").nth(locator).click()
     await page.wait_for_load_state("domcontentloaded")
 
 
@@ -130,4 +118,4 @@ def _order_movies(
     movies: list[Movie],
 ) -> list[Movie]:
     """Ordena las películas por fecha de proyección"""
-    return sorted(movies, key=lambda movie: Movie.date)
+    return sorted(movies, key=lambda movie: movie.date)
