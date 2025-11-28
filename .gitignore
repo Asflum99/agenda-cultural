@@ -21,3 +21,6 @@ wheels/
 
 # Secrets
 .env
+
+# Tests incompletos
+tests/
