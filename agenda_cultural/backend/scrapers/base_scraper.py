@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from agenda_cultural.backend.models import Movie
+from agenda_cultural.backend.models import Movies
 from playwright.async_api import Playwright
 
 
 class ScraperInterface(ABC):
     @abstractmethod
-    async def get_movies(self) -> list[Movie]:
+    async def get_movies(self) -> list[Movies]:
         pass
 
     async def setup_browser_and_open_page(self, p: Playwright):

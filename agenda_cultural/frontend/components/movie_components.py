@@ -1,12 +1,12 @@
 # pyright: reportUnknownMemberType=false
 import reflex as rx
 
-from agenda_cultural.backend.models import Movie
-from agenda_cultural.frontend.state.movie_state import MoviesList
+from agenda_cultural.backend.models import Movies
+from agenda_cultural.state.state import State
 from agenda_cultural.shared import get_center_info
 
 
-def render_movie(movie: Movie) -> rx.Component:
+def render_movie(movie: Movies) -> rx.Component:
     return rx.card(
         rx.data_list.root(
             rx.data_list.item(
@@ -46,7 +46,7 @@ def render_movie(movie: Movie) -> rx.Component:
 
 def movie_section(center_key: str) -> rx.Component:
     center_info: dict[str, str] = get_center_info(center_key)
-    movies = MoviesList.movies_by_center[center_key][:5]
+    movies = State.movies_by_center[center_key][:5]
     return rx.cond(
         movies,
         rx.vstack(
