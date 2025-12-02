@@ -19,7 +19,8 @@ jobs:
         run: uv sync
 
       - name: Run Ruff Linter
-        run: uv run ruff check .
+        run: uv run ruff check --output-format=github .
 
       - name: Run Ruff Formatter
         run: uv run ruff format --check .
+
