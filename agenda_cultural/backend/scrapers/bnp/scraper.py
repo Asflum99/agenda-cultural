@@ -1,17 +1,14 @@
-import locale
 import re
 from datetime import datetime
-from zoneinfo import ZoneInfo
 from typing import override
 from playwright.async_api import async_playwright, Page
-from agenda_cultural.backend.models import Movie
+from agenda_cultural.backend.models import Movies
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 
 
 class BnpScraper(ScraperInterface):
     BNP: str = "https://eventos.bnp.gob.pe/externo/inicio"
     MOVIE_BLOCK: str = ".no-padding.portfolio"
-    MOVIE_TITLE_PATTERN: str = r"(.+?)(\s\(\d+\))"
 
     @override
     async def get_movies(self):
@@ -21,7 +18,7 @@ class BnpScraper(ScraperInterface):
             try:
                 movies = await self._count_movies(page)
 
-                movies_info: list[Movie] = []
+                movies_info: list[Movies] = []
 
                 for movie in range(movies):
                     if movie_info := await self._get_movies_info(movie, page):
@@ -31,14 +28,14 @@ class BnpScraper(ScraperInterface):
 
             except Exception as e:
                 print(e)
-                return [Movie()]
+                return [Movies()]
 
             finally:
                 await browser.close()
 
     async def _get_movies_info(self, movie: int, page: Page):
         try:
-            movie_obj = Movie()
+            movie_obj = Movies()
 
             async with page.context.expect_page() as new_page_info:
                 await page.locator(self.MOVIE_BLOCK).nth(movie).click()
@@ -49,18 +46,20 @@ class BnpScraper(ScraperInterface):
             if title := await new_page.locator(
                 "#ContentPlaceHolder1_gpCabecera h1"
             ).text_content():
-                if match := re.match(self.MOVIE_TITLE_PATTERN, title):
-                    movie_obj.title = match.group(1)
+                title = title.strip()
+
+                parts = re.split(r"\s\(\d+\)", title, maxsplit=1)
+                raw_title = parts[0]
+
+                movie_obj.title = raw_title.strip("\"',.-“”")
 
             if date_time_element := await new_page.locator(
                 "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"
             ).text_content():
-                raw_date = date_time_element.strip()
-                date = raw_date.replace("   ", " ")
-                date = self._transform_date_to_iso(date)
+                raw_date = date_time_element.strip().replace("   ", " ")
+                date = self._parse_date_string(raw_date)
 
-                # Confirmar si la película ya se proyectó, ya que BNP muestra películas ya proyectadas
-                if date < datetime.now(tz=ZoneInfo("America/Lima")):
+                if date is None:
                     return None
 
                 movie_obj.date = date
@@ -80,43 +79,31 @@ class BnpScraper(ScraperInterface):
         except Exception as e:
             print(e)
 
-    def _clean_location(self, location: str):
+    def _parse_date_string(self, date_str: str) -> datetime | None:
+        clean_str = date_str.replace(",", "").strip()
+        tokens = clean_str.split()
+
+        if len(tokens) < 7:
+            return None
+
+        return self.validate_and_build_date(
+            day=int(tokens[1]),
+            month_str=tokens[3],
+            time_str=f"{tokens[6]}",
+            explicit_year=int(tokens[5]),
+        )
+
+    @staticmethod
+    def _clean_location(location: str):
         pos = location.find("Biblioteca")
         if pos != -1:
             result = location[pos:]
-            result = result.replace(",", " -")
+            result = result.replace(",", " -", count=1).replace(
+                ", San Borja", " (San Borja)"
+            )
             return result
         else:
             return location
-
-    def _transform_date_to_iso(self, date: str):
-        _ = locale.setlocale(locale.LC_TIME, "es_PE.utf8")
-        date = date[0].lower() + date[1:]
-        date = self._minus_month(date)
-        new_date = datetime.strptime(date, "%A, %d de %B del %Y %-I:%M%p")
-        new_date = new_date.replace(tzinfo=ZoneInfo("America/Lima"))
-        return new_date
-
-    def _minus_month(self, date: str):
-        months = {
-            "Enero": "enero",
-            "Febrero": "febrero",
-            "Marzo": "marzo",
-            "Abril": "abril",
-            "Mayo": "mayo",
-            "Junio": "junio",
-            "Julio": "julio",
-            "Agosto": "agosto",
-            "Septiembre": "setiembre",
-            "Octubre": "octubre",
-            "Noviembre": "noviembre",
-            "Diciembre": "diciembre",
-        }
-        for original_month, system_month in months.items():
-            if original_month in date:
-                return date.replace(original_month, system_month)
-
-        raise ValueError(f"No se pudo parsear la fecha: {date}")
 
     async def _count_movies(self, page: Page):
         _ = await page.goto(self.BNP, wait_until="load")
