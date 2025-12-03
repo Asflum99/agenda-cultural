@@ -2,13 +2,16 @@ import logging
 from logging.handlers import RotatingFileHandler
 import sys
 
+
 def configure_scraping_logger():
     """
     Configura y devuelve un logger con rotación de archivos.
     """
     # 1. Definir el nombre del archivo y formato
-    log_filename = 'scraping.log'
-    log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(module)s] - %(message)s')
+    log_filename = "scraping.log"
+    log_formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - [%(module)s] - %(message)s"
+    )
 
     # 2. Obtener el logger raíz o uno específico
     logger = logging.getLogger("agenda_cultural_scraper")
@@ -21,11 +24,11 @@ def configure_scraping_logger():
     # 3. Handler de Archivo (Con Rotación) - Guarda el historial
     file_handler = RotatingFileHandler(
         log_filename,
-        mode='a',
-        maxBytes=5*1024*1024,  # 5 MB
-        backupCount=2,         # Guarda log, log.1, log.2
-        encoding='utf-8',
-        delay=False
+        mode="a",
+        maxBytes=5 * 1024 * 1024,  # 5 MB
+        backupCount=2,  # Guarda log, log.1, log.2
+        encoding="utf-8",
+        delay=False,
     )
     file_handler.setFormatter(log_formatter)
     file_handler.setLevel(logging.INFO)

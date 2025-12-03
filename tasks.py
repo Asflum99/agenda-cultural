@@ -4,6 +4,7 @@ from agenda_cultural.backend.logger import configure_scraping_logger
 
 logger = configure_scraping_logger()
 
+
 async def run_nightly_maintenance():
     logger.info("--- Iniciando mantenimiento nocturno ---")
     try:
