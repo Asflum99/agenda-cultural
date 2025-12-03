@@ -24,3 +24,7 @@ wheels/
 
 # Tests incompletos
 tests/
+
+# Logs
+*.log
+*.log.*
