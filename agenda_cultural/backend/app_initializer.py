@@ -1,20 +1,19 @@
 from .services import (
-    has_upcoming_movies,
     cleanup_past_movies,
     save_movies_to_db,
     scrape_all_movies,
 )
+from agenda_cultural.backend.logger import configure_scraping_logger
+
+logger = configure_scraping_logger()
 
 
 async def initialize_app():
-    """Inicializa la aplicación: limpia BD o hace scraping según sea necesario"""
-    if has_upcoming_movies():
-        # Si hay películas futuras, solo limpia las pasadas
-        cleanup_past_movies()
-        print("BD actualizada - películas pasadas eliminadas")
-    else:
-        # Si no hay películas futuras, hace scraping completo
-        print("BD vacía - iniciando scraping...")
-        movies = await scrape_all_movies()
-        save_movies_to_db(movies)
-        print(f"Scraping completado - {len(movies)} películas guardadas")
+    logger.info("--- 1. Iniciando limpieza de base de datos ---")
+    cleanup_past_movies()
+
+    logger.info("--- 2. Iniciando scrapping de carteleras ---")
+    fresh_movies = await scrape_all_movies()
+
+    logger.info(f"--- 3. Guardando datos (Encontrados: {len(fresh_movies)})")
+    save_movies_to_db(fresh_movies)
