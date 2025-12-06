@@ -4,6 +4,7 @@ from typing import override
 from playwright.async_api import async_playwright, Page
 from agenda_cultural.backend.models import Movies
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
+from agenda_cultural.backend.services.tmdb_service import get_movie_poster
 
 
 class BnpScraper(ScraperInterface):
@@ -51,7 +52,10 @@ class BnpScraper(ScraperInterface):
                 parts = re.split(r"\s\(\d+\)", title, maxsplit=1)
                 raw_title = parts[0]
 
-                movie_obj.title = raw_title.strip("\"',.-“”")
+                clean_title = raw_title.strip("\"',.-“”")
+                poster_url = get_movie_poster(clean_title)
+                movie_obj.title = clean_title
+                movie_obj.poster_url = poster_url
 
             if date_time_element := await new_page.locator(
                 "#ContentPlaceHolder1_gpDetalleEvento p:nth-child(2)"
@@ -71,6 +75,7 @@ class BnpScraper(ScraperInterface):
                 movie_obj.location = location
 
             movie_obj.center = "bnp"
+            movie_obj.source_url = new_page.url
 
             await new_page.close()
 

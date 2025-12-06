@@ -1,3 +1,4 @@
-from .movie_components import movie_section
+from .views import mobile_feed_view, desktop_grid_view
+from .navbar import navbar
 
-__all__ = ["movie_section"]
+__all__ = ["mobile_feed_view", "desktop_grid_view", "navbar"]

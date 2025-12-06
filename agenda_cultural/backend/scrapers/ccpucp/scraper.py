@@ -4,6 +4,7 @@ from typing import override
 from playwright.async_api import async_playwright, Page
 from agenda_cultural.backend.models import Movies
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
+from agenda_cultural.backend.services.tmdb_service import get_movie_poster
 
 CCPUCP = "https://centrocultural.pucp.edu.pe/cine.html"
 MOVIE_TITLE_SELECTOR = ".catItemTitle a"
@@ -68,10 +69,14 @@ class CcpucpScraper(ScraperInterface):
                 date_object = self._parse_date_string(date_exist)
 
                 if date_object:
+                    clean_title = self._clean_title(movie_title)
+                    poster_url = get_movie_poster(clean_title)
                     movie_obj.date = date_object
-                    movie_obj.title = self._clean_title(movie_title)
+                    movie_obj.title = clean_title
                     movie_obj.location = "CCPUCP - Av. Camino Real 1075 (San Isidro)"
                     movie_obj.center = "ccpucp"
+                    movie_obj.poster_url = poster_url
+                    movie_obj.source_url = page.url
 
                     return movie_obj
                 else:
