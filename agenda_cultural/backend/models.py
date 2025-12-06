@@ -18,4 +18,5 @@ class Movies(rx.Model, table=True):
     location: str | None = None
     date: datetime | None = None
     center: str | None = None
+    poster_url: str | None = None
     extracted_at: datetime = Field(default_factory=get_peruvian_time)

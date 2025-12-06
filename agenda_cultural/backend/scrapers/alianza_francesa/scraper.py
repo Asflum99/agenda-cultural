@@ -6,6 +6,7 @@ from datetime import datetime
 
 from agenda_cultural.backend.models import Movies
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
+from agenda_cultural.backend.services.tmdb_service import get_movie_poster
 
 
 class AlianzaFrancesaScraper(ScraperInterface):
@@ -93,7 +94,10 @@ class AlianzaFrancesaScraper(ScraperInterface):
             if raw_title := await movie_box.locator(
                 ".cajas_cont_item_fecha .cajas__fecha_txt"
             ).text_content():
-                movie_obj.title = raw_title.replace("\n", " ").strip()
+                clean_title = raw_title.replace("\n", " ").strip()
+                poster_url = get_movie_poster(clean_title)
+                movie_obj.title = clean_title
+                movie_obj.poster_url = poster_url
 
             movie_obj.center = "alianza francesa"
 
