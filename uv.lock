@@ -8,6 +8,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "apscheduler" },
+    { name = "httpx" },
     { name = "playwright" },
     { name = "psycopg2-binary" },
     { name = "python-dotenv" },
@@ -29,6 +30,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "playwright", specifier = ">=1.56.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
