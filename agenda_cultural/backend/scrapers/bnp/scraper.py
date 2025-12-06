@@ -75,6 +75,7 @@ class BnpScraper(ScraperInterface):
                 movie_obj.location = location
 
             movie_obj.center = "bnp"
+            movie_obj.source_url = new_page.url
 
             await new_page.close()
 

@@ -100,6 +100,7 @@ class AlianzaFrancesaScraper(ScraperInterface):
                 movie_obj.poster_url = poster_url
 
             movie_obj.center = "alianza francesa"
+            movie_obj.source_url = page.url
 
             return movie_obj
         except Exception as e:

@@ -24,7 +24,13 @@ def render_movie(movie: Movies) -> rx.Component:
         # 2. SECCIÓN CONTENIDO (Abajo)
         rx.vstack(
             # Título destacado
-            rx.heading(movie.title, size="4", weight="bold", margin_bottom="0.5em"),
+            rx.heading(
+                movie.title,
+                size="4",
+                weight="bold",
+                margin_bottom="0.5em",
+                color=rx.color("gray", 12),
+            ),
             # Lista de datos (Solo para la info)
             rx.data_list.root(
                 # Item Fecha
@@ -33,6 +39,11 @@ def render_movie(movie: Movies) -> rx.Component:
                         rx.box(
                             "Fecha:",
                             width={"initial": "100%", "lg": "5rem"},
+                            font_weight="bold",
+                            text_transform="uppercase",
+                            letter_spacing="0.05em",
+                            font_size="0.75em",
+                            color=rx.color("gray", 10),
                         ),
                     ),
                     rx.data_list.value(
@@ -41,6 +52,7 @@ def render_movie(movie: Movies) -> rx.Component:
                             format="dddd D [de] MMMM - h:mm A",
                             locale="es",
                         ),
+                        color=rx.color("gray", 11),
                         style={"text-transform": "capitalize"},
                     ),
                 ),
@@ -50,10 +62,18 @@ def render_movie(movie: Movies) -> rx.Component:
                         rx.box(
                             "Lugar:",
                             width={"initial": "100%", "lg": "5rem"},
+                            font_weight="bold",
+                            text_transform="uppercase",
+                            letter_spacing="0.05em",
+                            font_size="0.75em",
+                            color=rx.color("gray", 10),
                         ),
                     ),
                     rx.data_list.value(
-                        rx.text(movie.location),
+                        rx.text(
+                            movie.location,
+                            color=rx.color("gray", 11),
+                        ),
                         # Permite que el texto baje a la siguiente línea si es muy largo
                         style={"word-break": "break-word"},
                         width="100%",  # Que ocupe todo el espacio sobrante
@@ -62,10 +82,18 @@ def render_movie(movie: Movies) -> rx.Component:
                 ),
                 size="1",
                 width="100%",
-                orientation={
-                    "initial": "vertical",
-                    "lg": "horizontal"
-                },
+                orientation={"initial": "vertical", "lg": "horizontal"},
+            ),
+            rx.box(
+                rx.link(
+                    "Ver sitio oficial",
+                    href=rx.cond(movie.source_url, movie.source_url, "#"),
+                    is_external=True,
+                ),
+                width="100%",
+                display="flex",
+                justify_content="center",
+                padding_top="1rem",
             ),
             align="start",
             spacing="3",

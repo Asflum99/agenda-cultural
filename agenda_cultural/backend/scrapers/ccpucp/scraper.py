@@ -76,6 +76,7 @@ class CcpucpScraper(ScraperInterface):
                     movie_obj.location = "CCPUCP - Av. Camino Real 1075 (San Isidro)"
                     movie_obj.center = "ccpucp"
                     movie_obj.poster_url = poster_url
+                    movie_obj.source_url = page.url
 
                     return movie_obj
                 else:
