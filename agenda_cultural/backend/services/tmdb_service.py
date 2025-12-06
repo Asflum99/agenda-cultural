@@ -1,13 +1,13 @@
 import httpx
-import os
 
 from agenda_cultural.backend.logger import configure_scraping_logger
+from agenda_cultural.backend.config import (
+    TMDB_TOKEN,
+    TMDB_BASE_URL,
+    TMDB_IMAGE_BASE_URL,
+)
 
 logger = configure_scraping_logger()
-
-TMDB_TOKEN = os.getenv("TMDB_TOKEN")
-BASE_URL = "https://api.themoviedb.org/3"
-IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 
 def get_movie_poster(title: str) -> str | None:
@@ -29,7 +29,7 @@ def get_movie_poster(title: str) -> str | None:
         "page": 1,
     }
 
-    url = f"{BASE_URL}/search/movie"
+    url = f"{TMDB_BASE_URL}/search/movie"
 
     try:
         with httpx.Client() as client:
@@ -51,7 +51,7 @@ def get_movie_poster(title: str) -> str | None:
 
                 if poster_path:
                     # 3. Construimos la URL final
-                    full_url = f"{IMAGE_BASE_URL}{poster_path}"
+                    full_url = f"{TMDB_IMAGE_BASE_URL}{poster_path}"
                     return full_url
 
             logger.warning(f"❌ No se encontró póster para '{title}'")
