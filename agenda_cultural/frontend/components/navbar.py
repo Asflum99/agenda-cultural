@@ -1,5 +1,6 @@
 import reflex as rx
 
+
 def navbar() -> rx.Component:
     return rx.hstack(
         rx.link(
@@ -8,9 +9,7 @@ def navbar() -> rx.Component:
             underline="none",
             color="inherit",
         ),
-
         rx.spacer(),
-
         # 2. ENLACES DE NAVEGACIÓN (A la derecha)
         rx.hstack(
             rx.link(
@@ -30,7 +29,6 @@ def navbar() -> rx.Component:
             spacing="5",
             align="center",
         ),
-
         # 3. ESTILOS DE LA BARRA FIJA
         position="sticky",
         top="0",
@@ -38,10 +36,8 @@ def navbar() -> rx.Component:
         padding_x=["1em", "1.5em", "2em"],
         padding_y="1em",
         width="100%",
-
         backdrop_filter="blur(10px)",
         background_color=rx.color("gray", 3, alpha=True),
-
         border_bottom=f"1px solid {rx.color('gray', 4)}",
         align="center",
     )

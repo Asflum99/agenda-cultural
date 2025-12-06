@@ -79,15 +79,11 @@ def mobile_feed_view() -> rx.Component:
 def desktop_grid_view() -> rx.Component:
     return rx.grid(
         # Desempaquetamos las columnas igual que antes
-        *[ _desktop_column(key) for key in get_all_center_keys() ],
-
+        *[_desktop_column(key) for key in get_all_center_keys()],
         # --- CONFIGURACIÓN DE GRILLA ---
-        columns="3",      # "Quiero exactamente 3 columnas siempre"
-        spacing="5",      # "Quiero espacio 5 entre ellas SIEMPRE"
+        columns="3",  # "Quiero exactamente 3 columnas siempre"
+        spacing="5",  # "Quiero espacio 5 entre ellas SIEMPRE"
         width="100%",
-
         align_items="start",
-
-        # Mantenemos la lógica de visualización
         display=["none", "none", "grid", "grid", "grid"],
     )
