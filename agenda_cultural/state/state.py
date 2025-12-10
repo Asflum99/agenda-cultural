@@ -5,17 +5,24 @@ from agenda_cultural.shared import get_all_center_keys
 
 class State(rx.State):
     movies: list[Movies] = []
+    is_loading: bool = True
 
     @rx.event
     def load_movies(self):
-        with rx.session() as session:
-            self.movies = list(
-                session.exec(
-                    Movies.select().order_by(
-                        Movies.date  # pyright: ignore [reportArgumentType]
-                    )
-                ).all()
-            )
+        try:
+            with rx.session() as session:
+                self.movies = list(
+                    session.exec(
+                        Movies.select().order_by(
+                            Movies.date  # pyright: ignore [reportArgumentType]
+                        )
+                    ).all()
+                )
+        except Exception as e:
+            print(e)
+
+        finally:
+            self.is_loading = False
 
     @rx.var
     def movies_by_center(self) -> dict[str, list[Movies]]:
