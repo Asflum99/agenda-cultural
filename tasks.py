@@ -1,8 +1,8 @@
 import asyncio
-from agenda_cultural.backend.app_initializer import initialize_app
-from agenda_cultural.backend.logger import configure_scraping_logger
+from agenda_cultural.backend import initialize_app
+from agenda_cultural.backend import get_task_logger
 
-logger = configure_scraping_logger()
+logger = get_task_logger("maintenance_orchestrator", "scraping.log")
 
 
 async def run_nightly_maintenance():
