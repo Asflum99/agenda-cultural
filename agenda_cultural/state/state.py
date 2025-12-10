@@ -1,21 +1,31 @@
 import reflex as rx
-from agenda_cultural.backend.models import Movies
+from agenda_cultural.backend import Movies
 from agenda_cultural.shared import get_all_center_keys
+from agenda_cultural.backend import get_task_logger
+
+db_logger = get_task_logger("database_core", "database.log")
 
 
 class State(rx.State):
     movies: list[Movies] = []
+    is_loading: bool = True
 
     @rx.event
     def load_movies(self):
-        with rx.session() as session:
-            self.movies = list(
-                session.exec(
-                    Movies.select().order_by(
-                        Movies.date  # pyright: ignore [reportArgumentType]
-                    )
-                ).all()
-            )
+        try:
+            with rx.session() as session:
+                self.movies = list(
+                    session.exec(
+                        Movies.select().order_by(
+                            Movies.date  # pyright: ignore [reportArgumentType]
+                        )
+                    ).all()
+                )
+        except Exception as e:
+            db_logger.error(f"Error cargando las películas: {e}", exc_info=True)
+
+        finally:
+            self.is_loading = False
 
     @rx.var
     def movies_by_center(self) -> dict[str, list[Movies]]:

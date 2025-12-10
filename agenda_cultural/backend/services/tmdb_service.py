@@ -1,13 +1,13 @@
 import httpx
 
-from agenda_cultural.backend.logger import configure_scraping_logger
+from agenda_cultural.backend.log_config import get_task_logger
 from agenda_cultural.backend.config import (
     TMDB_TOKEN,
     TMDB_BASE_URL,
     TMDB_IMAGE_BASE_URL,
 )
 
-logger = configure_scraping_logger()
+logger = get_task_logger("tmdb_client", "tmdb_integration.log")
 
 
 def get_movie_poster(title: str) -> str | None:
@@ -15,7 +15,7 @@ def get_movie_poster(title: str) -> str | None:
     Busca una película por título y devuelve la URL absoluta de su póster.
     """
     if not TMDB_TOKEN:
-        logger.warning("⚠️ TMDB_TOKEN no configurado en .env")
+        logger.critical("⚠️ TMDB_TOKEN no configurado en .env")
         return None
 
     # Headers de autenticación
