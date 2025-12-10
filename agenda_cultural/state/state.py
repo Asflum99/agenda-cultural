@@ -1,6 +1,9 @@
 import reflex as rx
-from agenda_cultural.backend.models import Movies
+from agenda_cultural.backend import Movies
 from agenda_cultural.shared import get_all_center_keys
+from agenda_cultural.backend import get_task_logger
+
+db_logger = get_task_logger("database_core", "database.log")
 
 
 class State(rx.State):
@@ -19,7 +22,7 @@ class State(rx.State):
                     ).all()
                 )
         except Exception as e:
-            print(e)
+            db_logger.error(f"Error cargando las películas: {e}", exc_info=True)
 
         finally:
             self.is_loading = False

@@ -11,10 +11,8 @@ from agenda_cultural.frontend.components import (
 def home() -> rx.Component:
     return rx.box(
         navbar(),
-
         rx.cond(
             State.is_loading,
-
             # --- OPCIÓN A: MIENTRAS CARGA ---
             rx.center(
                 rx.vstack(
@@ -27,7 +25,6 @@ def home() -> rx.Component:
                 min_height="50vh",
                 padding_y="4rem",
             ),
-
             # --- OPCIÓN B: CUANDO YA HAY DATOS ---
             rx.vstack(
                 mobile_feed_view(),

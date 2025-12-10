@@ -3,9 +3,9 @@ from .services import (
     save_movies_to_db,
     scrape_all_movies,
 )
-from agenda_cultural.backend.logger import configure_scraping_logger
+from .log_config import get_task_logger
 
-logger = configure_scraping_logger()
+logger = get_task_logger("scraper_worker", "scraping.log")
 
 
 async def initialize_app():
