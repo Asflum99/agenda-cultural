@@ -99,14 +99,18 @@ def render_movie(movie: Movies) -> rx.Component:
                 display="flex",
                 justify_content="center",
                 padding_top="1rem",
+                margin_top="auto",
             ),
             align="start",
             spacing="3",
             width="100%",
+            flex_grow="1",
         ),
         # Estilos generales de la tarjeta
         width="100%",
         max_width="16rem",
         margin_x="auto",
         overflow="hidden",
+        display="flex",
+        flex_direction="column",
     )

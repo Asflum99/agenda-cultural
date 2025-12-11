@@ -2,7 +2,7 @@ import reflex as rx
 from agenda_cultural.state.state import State
 from agenda_cultural.frontend.components import (
     mobile_feed_view,
-    desktop_grid_view,
+    desktop_cinemas_view,
     navbar,
 )
 
@@ -28,7 +28,7 @@ def home() -> rx.Component:
             # --- OPCIÓN B: CUANDO YA HAY DATOS ---
             rx.vstack(
                 mobile_feed_view(),
-                desktop_grid_view(),
+                desktop_cinemas_view(),
                 rx.divider(),
                 width=["95%", "90%", "85%", "70%"],
                 margin_x="auto",
