@@ -2,6 +2,7 @@ import reflex as rx
 
 from agenda_cultural.shared import get_all_center_keys, get_center_info
 from agenda_cultural.state.state import State
+from agenda_cultural.styles import NO_SCROLLBAR
 from .movie_card import render_movie
 
 
@@ -9,8 +10,6 @@ def _accordion_item(center_key: str) -> rx.Component:
     center_info = get_center_info(center_key)
     movies = State.movies_by_center[center_key]
 
-    # 1. ELIMINAMOS EL RX.COND EXTERNO
-    # Devolvemos directamente el item para no romper la jerarquía
     return rx.accordion.item(
         rx.accordion.header(
             rx.accordion.trigger(
@@ -36,31 +35,48 @@ def _accordion_item(center_key: str) -> rx.Component:
             )
         ),
         value=center_key,
-        # 2. LA MAGIA AQUÍ:
-        # Usamos la propiedad 'display' para ocultarlo si la lista 'movies' está vacía.
         # Si movies tiene datos (True) -> "block" (Visible)
         # Si movies está vacía (False) -> "none" (Oculto)
         display=rx.cond(movies, "block", "none"),
     )
 
 
-def _desktop_column(center_key: str) -> rx.Component:
-    center_info: dict[str, str] = get_center_info(center_key)
-    movies = State.movies_by_center[center_key][:5]
+def _cinema_row(center_key: str) -> rx.Component:
+    movies_of_this_center = State.movies_by_center[center_key]
+    center_info = get_center_info(center_key)
+    pretty_name = center_info.get("name", center_key.title())
 
     return rx.cond(
-        movies,
+        # Si la lista está vacía, no renderiza nada (ni el título).
+        movies_of_this_center,
         rx.vstack(
-            rx.text(center_info["name"], font_weight="bold"),
-            rx.foreach(
-                movies,
-                render_movie,
+            # 1. Título del Cine
+            rx.heading(
+                pretty_name,
+                size="5",
+                margin_bottom="4",
+                color_scheme="gray",
+                align_self="center",
             ),
-            align="center",
-            spacing="4",
-            min_width="0",
+            # 2. El Carrusel Horizontal
+            rx.hstack(
+                rx.foreach(movies_of_this_center, render_movie),
+                # Estilos de Scroll Horizontal
+                overflow_x="auto",
+                width="100%",
+                spacing="4",
+                padding_bottom="0.5rem",
+                style=NO_SCROLLBAR,
+                align_items="stretch",
+            ),
+            width="100%",
+            align_items="start",
+            bg=rx.color("gray", 2),
+            border=f"1px solid {rx.color('gray', 4)}",
+            border_radius="12px",
+            padding="1.5rem",
+            gap="2rem",
         ),
-        rx.fragment(),
     )
 
 
@@ -76,14 +92,13 @@ def mobile_feed_view() -> rx.Component:
     )
 
 
-def desktop_grid_view() -> rx.Component:
-    return rx.grid(
-        # Desempaquetamos las columnas igual que antes
-        *[_desktop_column(key) for key in get_all_center_keys()],
-        # --- CONFIGURACIÓN DE GRILLA ---
-        columns="3",  # "Quiero exactamente 3 columnas siempre"
-        spacing="5",  # "Quiero espacio 5 entre ellas SIEMPRE"
+def desktop_cinemas_view() -> rx.Component:
+    return rx.vstack(
+        # Generamos una fila por cada cine conocido
+        *[_cinema_row(center_key) for center_key in get_all_center_keys()],
         width="100%",
+        spacing="8",
+        padding_y="2rem",
         align_items="start",
-        display=["none", "none", "grid", "grid", "grid"],
+        display=["none", "none", "flex", "flex", "flex"],
     )
