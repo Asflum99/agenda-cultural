@@ -29,12 +29,10 @@ def home() -> rx.Component:
             rx.vstack(
                 mobile_feed_view(),
                 desktop_cinemas_view(),
-                rx.divider(),
                 width=["95%", "90%", "85%", "70%"],
                 margin_x="auto",
                 align="center",
                 spacing="6",
-                padding_y="4rem",
             ),
         ),
     )
