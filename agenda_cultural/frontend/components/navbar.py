@@ -38,6 +38,6 @@ def navbar() -> rx.Component:
         width="100%",
         backdrop_filter="blur(10px)",
         background_color=rx.color("gray", 3, alpha=True),
-        border_bottom=f"1px solid {rx.color('gray', 4)}",
+        # border_bottom=f"1px solid {rx.color('gray', 4)}",
         align="center",
     )
