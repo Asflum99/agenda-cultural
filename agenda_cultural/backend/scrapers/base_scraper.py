@@ -43,8 +43,8 @@ class ScraperInterface(ABC):
             if not month:
                 return None
 
-            # 2. Parsear Hora (Maneja "7:00 pm", "7:00 p.m.", "19:00")
-            clean_time = time_str.replace(".", "").upper().strip()
+            # 2. Parsear Hora (Maneja "7:00 pm", "7:00 p.m.", "19:00", "7:00 p. m.")
+            clean_time = time_str.replace(".", "").replace("p m", "pm").upper().strip()
 
             # Asumimos formato AM/PM. Si algún cine usa 24h, habría que ajustar aquí.
             time_obj = None
