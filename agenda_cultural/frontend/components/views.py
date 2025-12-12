@@ -37,7 +37,6 @@ def _render_cinema_row_base(center_key: str, is_mobile: bool) -> rx.Component:
                 style=NO_SCROLLBAR,
                 align_items="stretch",
             ),
-            # Estilos del Contenedor
             width="100%",
             border_bottom=f"1px solid {rx.color('gray', 4)}",
             spacing="6",
