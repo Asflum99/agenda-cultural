@@ -109,6 +109,7 @@ def render_movie(movie: Movies) -> rx.Component:
         # Estilos generales de la tarjeta
         width="100%",
         max_width="16rem",
+        min_width="15rem",
         margin_x="auto",
         overflow="hidden",
         display="flex",
