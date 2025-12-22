@@ -7,12 +7,14 @@ relacionadas con las películas. Sus responsabilidades son:
 2. Actualización: Guardar nuevas películas aplicando lógica de desduplicación.
 """
 
-import reflex as rx
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from sqlmodel import delete, select, Session
-from agenda_cultural.backend.models import Movie
+
+import reflex as rx
+from sqlmodel import Session, delete, select
+
 from agenda_cultural.backend.log_config import get_task_logger
+from agenda_cultural.backend.models import Movie
 
 # Usamos el logger 'database_service' pero guardamos en el mismo archivo 'scraping.log'
 # para tener la historia completa en un solo lugar.
@@ -35,7 +37,7 @@ def cleanup_past_movies():
         # para que coincida con el formato de la base de datos SQL.
         now_clean = datetime.now(ZoneInfo("America/Lima")).replace(tzinfo=None)
 
-        statement = delete(Movie).where(Movie.date < now_clean)  # pyright: ignore
+        statement = delete(Movie).where(Movie.date < now_clean)  # ty: ignore[unsupported-operator]
         session.exec(statement)
         session.commit()
 
@@ -55,7 +57,7 @@ def _filter_new_movies(scraped_movies: list[Movie], session: Session) -> list[Mo
         list: Lista con las películas nuevas que se encontraron.
     """
     existing_signatures = _get_existing_signatures(session)
-    new_movies = []
+    new_movies: list[Movie] = []
 
     for movie in scraped_movies:
         signature = (movie.center, movie.title, movie.date)
