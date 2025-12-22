@@ -1,5 +1,14 @@
-from .models import Movies
-from .log_config import get_task_logger
-from .app_initializer import initialize_app
+"""
+Interfaz pública del paquete Backend.
 
-__all__ = ["Movies", "get_task_logger", "initialize_app"]
+Centraliza los componentes accesibles desde otras capas de la aplicación (Frontend),
+como los modelos de datos y el orquestador de scraping.
+"""
+
+from .log_config import get_task_logger
+from .models import Movie
+from .scraping_orchestrator import run_scraping_pipeline
+
+# Define explícitamente qué se exporta cuando alguien hace:
+# "from agenda_cultural.backend import *"
+__all__ = ["Movie", "get_task_logger", "run_scraping_pipeline"]
