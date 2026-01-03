@@ -20,7 +20,9 @@ El HTML del LUM tiene las siguientes particularidades:
 - Se utiliza la etiqueta <strong> como ancla principal para detectar títulos.
 
 LÓGICA HEURÍTICA:
-- Detección de Cine: Busca keywords ("Cine", "Documental") dentro de etiquetas <strong>.
+- Detección de Cine: 
+    Estrategia #1: Busca keywords ("Cine", "Documental") dentro de etiquetas <strong>.
+    Estrategia #2: Buscar estructura (apertura de comillas) dentro de etiquetas <strong>.
 - Desambiguación: Distingue entre encabezados (ej: "Cinefórum") y títulos reales
   analizando metadatos técnicos (Año, Duración) en las líneas adyacentes.
 - Extracción Posicional: Deduce Fecha y Hora basándose en su posición relativa
@@ -113,6 +115,11 @@ class LumScraper(ScraperInterface):
     )
 
     DATE_PATTERN: Pattern[str] = re.compile(r"(\d{1,2})\s+de\s+([a-zA-Z]+)")
+
+    MONTHS_PATTERN: Pattern[str] = re.compile(
+        r"\b(" + "|".join(MAPA_MESES.keys()) + r")\b",
+        re.IGNORECASE
+    )
 
     @override
     async def get_movies(self):
@@ -285,54 +292,79 @@ class LumScraper(ScraperInterface):
 
         for j in range(start_index, len(lines)):
             line_lower = lines[j].lower()
-            if any(mes in line_lower for mes in MAPA_MESES.keys()):
-                return j
+            if self.MONTHS_PATTERN.search(line_lower):
+                if re.search(r"\d", line_lower):
+                    return j
 
         return -1
 
     def _resolve_title_index(self, lines: list[str]) -> int:
         """
-        Busca el índice de la línea que contiene el título de la película.
-        Combina búsqueda por keywords y desambiguación por metadatos.
-        Retorna -1 si no se encuentra.
+        Busca el índice de la línea que contiene el título.
+        
+        Estrategia:
+        1. Búsqueda por Keywords ("cine", "película").
+        2. Búsqueda por Estructura (Comillas + Metadata).
+
+        Retorna -1 si no hay título de película.
         """
         keyword_index = -1
+
+        # Estrategia 1: Busqueda por keywords
         for idx, line in enumerate(lines):
             if any(k in line.lower() for k in self.MOVIE_KEYWORDS):
                 keyword_index = idx
                 break
 
-        if keyword_index == -1:
-            return -1
+        if keyword_index != -1:
+            if keyword_index + 1 >= len(lines):
+                return keyword_index
 
-        if keyword_index + 1 >= len(lines):
+            current_line = lines[keyword_index]
+            next_line = lines[keyword_index + 1]
+
+            curr_has_meta = self._has_technical_metadata(current_line)
+            next_has_meta = self._has_technical_metadata(next_line)
+
+            curr_has_colon_title = (
+                ":" in current_line and len(current_line.split(":")[-1].strip()) > 3
+            )
+
+            next_starts_quote = next_line.strip().startswith(('"', "“", "”"))
+
+            if curr_has_meta:
+                return keyword_index
+
+            elif next_has_meta:
+                return keyword_index + 1
+
+            elif curr_has_colon_title:
+                return keyword_index
+
+            elif next_starts_quote:
+                return keyword_index + 1
+
             return keyword_index
 
-        current_line = lines[keyword_index]
-        next_line = lines[keyword_index + 1]
+        # Estrategia 2: Busqueda por estructura
+        for idx, line in enumerate(lines):
+            clean_line = line.strip()
+            
+            starts_quote = clean_line.startswith(('"', "“", "”"))
+            
+            if not starts_quote:
+                continue
 
-        curr_has_meta = self._has_technical_metadata(current_line)
-        next_has_meta = self._has_technical_metadata(next_line)
+            has_meta_here = self._has_technical_metadata(clean_line)
+            
+            has_meta_next = False
+            if idx + 1 < len(lines):
+                has_meta_next = self._has_technical_metadata(lines[idx + 1])
 
-        curr_has_colon_title = (
-            ":" in current_line and len(current_line.split(":")[-1].strip()) > 3
-        )
+            if has_meta_here or has_meta_next:
+                return idx
 
-        next_starts_quote = next_line.strip().startswith(('"', "“", "”"))
-
-        if curr_has_meta:
-            return keyword_index
-
-        elif next_has_meta:
-            return keyword_index + 1
-
-        elif curr_has_colon_title:
-            return keyword_index
-
-        elif next_starts_quote:
-            return keyword_index + 1
-
-        return keyword_index
+        return -1
 
     async def _extract_clean_lines(self, p_locator: Locator) -> list[str] | None:
         """
