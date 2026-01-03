@@ -20,7 +20,7 @@ El HTML del LUM tiene las siguientes particularidades:
 - Se utiliza la etiqueta <strong> como ancla principal para detectar títulos.
 
 LÓGICA HEURÍTICA:
-- Detección de Cine: 
+- Detección de Cine:
     Estrategia #1: Busca keywords ("Cine", "Documental") dentro de etiquetas <strong>.
     Estrategia #2: Buscar estructura (apertura de comillas) dentro de etiquetas <strong>.
 - Desambiguación: Distingue entre encabezados (ej: "Cinefórum") y títulos reales
@@ -117,8 +117,7 @@ class LumScraper(ScraperInterface):
     DATE_PATTERN: Pattern[str] = re.compile(r"(\d{1,2})\s+de\s+([a-zA-Z]+)")
 
     MONTHS_PATTERN: Pattern[str] = re.compile(
-        r"\b(" + "|".join(MAPA_MESES.keys()) + r")\b",
-        re.IGNORECASE
+        r"\b(" + "|".join(MAPA_MESES.keys()) + r")\b", re.IGNORECASE
     )
 
     @override
@@ -301,7 +300,7 @@ class LumScraper(ScraperInterface):
     def _resolve_title_index(self, lines: list[str]) -> int:
         """
         Busca el índice de la línea que contiene el título.
-        
+
         Estrategia:
         1. Búsqueda por Keywords ("cine", "película").
         2. Búsqueda por Estructura (Comillas + Metadata).
@@ -349,14 +348,14 @@ class LumScraper(ScraperInterface):
         # Estrategia 2: Busqueda por estructura
         for idx, line in enumerate(lines):
             clean_line = line.strip()
-            
+
             starts_quote = clean_line.startswith(('"', "“", "”"))
-            
+
             if not starts_quote:
                 continue
 
             has_meta_here = self._has_technical_metadata(clean_line)
-            
+
             has_meta_next = False
             if idx + 1 < len(lines):
                 has_meta_next = self._has_technical_metadata(lines[idx + 1])

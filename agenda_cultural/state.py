@@ -5,6 +5,7 @@ Este módulo centraliza la lógica interactiva y el flujo de datos. Actúa como
 puente entre la base de datos (Backend/DB) y la interfaz de usuario (Frontend),
 definiendo las variables reactivas y los eventos de carga.
 """
+
 import reflex as rx
 
 from agenda_cultural.backend import Movie, get_task_logger
