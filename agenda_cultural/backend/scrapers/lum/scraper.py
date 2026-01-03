@@ -1,122 +1,422 @@
+"""
+Módulo de Scraping para el Lugar de la Memoria (LUM).
+
+Este módulo implementa la lógica de extracción de eventos cinematográficos
+desde la agenda oficial del LUM.
+
+TARGET URL: https://lum.cultura.pe/actividades
+
+ESTRATEGIA DE NAVEGACIÓN:
+1. Identificación de Bloques: Escanea la página principal buscando bloques de actividades.
+2. Filtrado Inteligente:
+   - Descarta agendas "Semanales".
+   - Prioriza agendas "Mensuales" vigentes o futuras.
+   - Entra a la página detalle de la agenda mensual seleccionada.
+
+ESTRATEGIA DE EXTRACCIÓN (PARSING):
+El HTML del LUM tiene las siguientes particularidades:
+- Los eventos no están en contenedores <div> individuales.
+- Se presentan como una secuencia de párrafos (<p>) con etiquetas <br>.
+- Se utiliza la etiqueta <strong> como ancla principal para detectar títulos.
+
+LÓGICA HEURÍTICA:
+- Detección de Cine:
+    Estrategia #1: Busca keywords ("Cine", "Documental") dentro de etiquetas <strong>.
+    Estrategia #2: Buscar estructura (apertura de comillas) dentro de etiquetas <strong>.
+- Desambiguación: Distingue entre encabezados (ej: "Cinefórum") y títulos reales
+  analizando metadatos técnicos (Año, Duración) en las líneas adyacentes.
+- Extracción Posicional: Deduce Fecha y Hora basándose en su posición relativa
+  respecto al título detectado.
+"""
+
 import re
-from typing import override
-from playwright.async_api import async_playwright, Page
-from agenda_cultural.backend.models import Movies
+from datetime import datetime
+from typing import ClassVar, Pattern, override
+
+from playwright.async_api import Locator, Page, async_playwright
+
+from agenda_cultural.backend.constants import MAPA_MESES
+from agenda_cultural.backend.log_config import get_task_logger
+from agenda_cultural.backend.models import Movie
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 from agenda_cultural.backend.services.tmdb_service import get_movie_poster
-from agenda_cultural.backend.constants import MAPA_MESES
 
-LUM = "https://lum.cultura.pe/actividades"
-EVENT_BLOCK_SELECTOR = ".views-row"
-TITLE_PATTERN = re.compile(r'[“"]([^”"]+)[”"]')
-MOVIE_TITLE_SELECTOR = ".field-item p strong"
-DATE_PATTERN = re.compile(
-    r"(?i)(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)"
-)
-TIME_PATTERN = re.compile(r"(?i)(\d{1,2}:\d{2})\s*(a\.?|p\.?)\s*m\.?")
+logger = get_task_logger("lum_scraper", "scraping.log")
 
 
 class LumScraper(ScraperInterface):
+    START_URL: ClassVar[str] = "https://lum.cultura.pe/actividades"
+    MOVIE_KEYWORDS: ClassVar[tuple[str, ...]] = (
+        "cine",
+        "película",
+        "documental",
+        "proyección",
+    )
+
+    # Los selectores de la página principal de actividades
+    ACTIVITY_BLOCK_SELECTOR: ClassVar[str] = ".views-row"
+    BLOCK_TITLE_SELECTOR: ClassVar[str] = ".views-field-title"
+
+    # Los selectores de los párrafos donde está el contenido de las películas
+    PARAGRAPH_SELECTOR: ClassVar[str] = ".field-item p"
+    MOVIE_TITLE_SELECTOR: ClassVar[str] = ".field-item p strong"
+
+    # Captura de texto entre comillas, con soporte para tipográficas y rectas
+    TITLE_PATTERN: Pattern[str] = re.compile(
+        r"""
+    [“"]        # Comilla de apertura (normal o tipográfica)
+    ([^”"]+)    # Grupo 1: Contenido (todo excepto comillas)
+    [”"]        # Comilla de cierre
+    """,
+        re.VERBOSE,
+    )
+
+    # Patrón que identifica paréntesis con metadatos al final del título (para su eliminación).
+    METADATA_PATTERN: Pattern[str] = re.compile(r"\s*\(.*?\)$")
+
+    # Patrón de validación: Detecta si el texto contiene datos técnicos (año/min).
+    TECHNICAL_METADATA = re.compile(
+        r"""
+        \(              # Paréntesis de apertura literal
+        .*?             # Contenido variable (greedy mínimo)
+        \b              # Límite de palabra (evita falsos positivos como 'admin')
+        (
+            19\d{2}|    # Años 1900-1999
+            20\d{2}|    # Años 2000-2099
+            min         # Duración
+        )
+        \b              # Límite de palabra
+        .*?             # Contenido variable
+        \)              # Paréntesis de cierre
+    """,
+        re.VERBOSE | re.IGNORECASE,
+    )
+
+    # Patrón de limpieza: Captura y elimina el nombre del director de la película.
+    DIRECTOR_PATTERN: Pattern[str] = re.compile(r",\s*de\s+.*$", re.IGNORECASE)
+
+    PREFIX_PATTERN: Pattern[str] = re.compile(
+        r"""
+        ^                   # Inicio de la línea
+        (                   # Grupo 1: Palabras clave
+            proyección|
+            documental|
+            cine|
+            estreno|
+            cinefórum|
+            conversatorio|
+            ciclo
+        )
+        ([\s\+\w]*)?        # Grupo 2 (Opcional): Texto extra (espacios, +, letras)
+        [:\.]?              # Opcional: Termina en dos puntos o punto
+        \s* # Espacios finales sobrantes
+    """,
+        re.IGNORECASE | re.VERBOSE,
+    )
+
+    DATE_PATTERN: Pattern[str] = re.compile(r"(\d{1,2})\s+de\s+([a-zA-Z]+)")
+
+    MONTHS_PATTERN: Pattern[str] = re.compile(
+        r"\b(" + "|".join(MAPA_MESES.keys()) + r")\b", re.IGNORECASE
+    )
+
     @override
     async def get_movies(self):
+        movies: list[Movie] = []
+
         async with async_playwright() as p:
             browser, page = await self.setup_browser_and_open_page(p)
 
             try:
-                _ = await page.goto(LUM, wait_until="load")
+                await page.goto(self.START_URL, wait_until="load")
 
-                events_block = await page.locator(EVENT_BLOCK_SELECTOR).count()
+                activity_blocks = page.locator(self.ACTIVITY_BLOCK_SELECTOR)
+                total_blocks = await activity_blocks.count()
 
-                movies_info: list[Movies] = []
+                for i in range(total_blocks):
+                    block = activity_blocks.nth(i)
 
-                for event in range(events_block):
-                    event_title = (
-                        await page.locator(EVENT_BLOCK_SELECTOR)
-                        .nth(event)
-                        .locator(".views-field-title")
-                        .inner_text()
-                    ).lower()
+                    title_clean = await self._extract_activity_title(block)
 
-                    if match := re.compile(
-                        r"agenda\s+([a-zA-Z]+)\s+(\d{4})", re.IGNORECASE
-                    ).search(event_title):
-                        month = match.group(1).lower()
+                    if not title_clean:
+                        continue
 
-                        month_num = MAPA_MESES.get(month)
+                    if "semanal" in title_clean:
+                        continue
 
-                        if month_num:
-                            await page.locator(EVENT_BLOCK_SELECTOR).nth(event).click()
-                            await page.wait_for_load_state("load")
-                            if movies := await self._get_movies_info(page):
-                                movies_info.extend(movies)
-                                break
+                    if self._is_relevant_monthly_agenda(title_clean):
+                        await page.locator(self.ACTIVITY_BLOCK_SELECTOR).nth(i).click()
+                        await page.wait_for_load_state("load")
 
-                return movies_info
+                        if movies_scraped := await self._extract_movies_from_agenda(
+                            page
+                        ):
+                            movies.extend(movies_scraped)
+                            break
 
             except Exception as e:
-                print(e)
-                return [Movies()]
+                logger.error(f"Error en LUM Scraper: {e}", exc_info=True)
 
             finally:
                 await browser.close()
 
-    async def _get_movies_info(self, page: Page):
-        paragraph_selector = ".field-item p"
-        paragraphs = await page.locator(paragraph_selector).all()
-        movies_to_return: list[Movies] = []
+        return movies
 
-        for p_locator in paragraphs:
-            full_text = await p_locator.inner_text()
+    async def _extract_activity_title(self, block: Locator) -> str | None:
+        """
+        Extrae y normaliza el título del bloque de actividad.
 
-            if "cine" not in full_text.lower():
+        Retorna None si encuentra un texto vacío.
+        """
+        title_element = block.locator(self.BLOCK_TITLE_SELECTOR).first
+
+        title_text = await title_element.inner_text()
+
+        # En caso retorne una cadena vacía, sigue siendo str, pero es False
+        if not title_text:
+            return None
+
+        return title_text.strip().lower()
+
+    def _is_relevant_monthly_agenda(self, title: str) -> bool:
+        """
+        Determina si una agenda es vigente (mes actual o futuro) basándose en su título.
+
+        Analiza el texto buscando el nombre de un mes y un año (ej: "Agenda Diciembre 2025").
+
+        Returns:
+            bool: True si la fecha detectada es igual o posterior al mes actual.
+                  False si es pasada o si no se pudo extraer una fecha válida.
+        """
+        for month_name, month_num in MAPA_MESES.items():
+            if month_name in title:
+                if year_match := re.search(r"20\d{2}", title):
+                    year = int(year_match.group())
+
+                    now = datetime.now()
+
+                    # Normaliza ambas fechas al día 1 para comparar solo AÑO y MES
+                    # evitando problemas si hoy es día 30 y el mes objetivo tiene 28 días
+                    current_date = datetime(now.year, now.month, 1)
+                    target_date = datetime(year, month_num, 1)
+
+                    return target_date >= current_date
+
+        return False
+
+    async def _extract_movies_from_agenda(self, page: Page) -> list[Movie]:
+        """
+        Extrae las películas de la agenda mensual que aún no se proyectan.
+        Para ello revisa cada párrafo en búsqueda del título del metraje y los limpia de posible ruido.
+
+        Retorna una lista con los objetos Movie.
+        """
+        paragraphs = page.locator(self.PARAGRAPH_SELECTOR)
+        count = await paragraphs.count()
+        movies_found: list[Movie] = []
+
+        for i in range(count):
+            p_locator = paragraphs.nth(i)
+
+            lines = await self._extract_clean_lines(p_locator)
+
+            if not lines:
                 continue
 
-            movie_obj = Movies()
+            title_index = self._resolve_title_index(lines)
 
-            lines = full_text.split("\n")
+            if title_index == -1:
+                continue
 
-            day = 0
-            month = ""
-            time = ""
+            date_index = self._resolve_date_index(lines, title_index)
 
-            for line in lines:
-                line = line.strip()
-
-                if "“" in line or '"' in line:
-                    movie_title = self._clean_title(line)
-                    movie_obj.title = movie_title
-                    movie_obj.poster_url = get_movie_poster(movie_title)
-
-                if match_date := DATE_PATTERN.search(line):
-                    raw_date = match_date.group()
-                    day = int(raw_date.split()[1])
-                    month = raw_date.split()[3]
-
-                if match_time := TIME_PATTERN.search(line):
-                    time = match_time.group()
-                else:
-                    continue
-
-                if movie_date := self.validate_and_build_date(day, month, time):
-                    movie_obj.date = movie_date
-                else:
-                    break
-                movie_obj.location = (
-                    "Lugar de la Memoria - Bajada San Martín 151 (Miraflores)"
+            if date_index == -1:
+                logger.warning(
+                    f"Título detectado, pero no se halló línea con fecha: '{lines[title_index]}'"
                 )
-                movie_obj.center = "lum"
-                movie_obj.source_url = page.url
+                continue
+
+            if date_index + 1 >= len(lines):
+                logger.warning(
+                    f"Fecha encontrada, pero falta la línea de hora: '{lines[date_index]}'"
+                )
+                continue
+
+            try:
+                if movie := self._build_movie_from_lines(
+                    lines, title_index, date_index, page.url
+                ):
+                    movies_found.append(movie)
+            except Exception as e:
+                logger.error(f"Error procesando líneas de parrafo: {e}")
+
+        return movies_found
+
+    def _build_movie_from_lines(
+        self, lines: list[str], title_index: int, date_index: int, source_url: str
+    ) -> Movie | None:
+        """
+        Ensambla el objeto Movie a partir de las líneas de texto y los índices identificados.
+        Realiza la limpieza de título, parseo de fecha y obtención de póster.
+        """
+        raw_title = lines[title_index]
+        raw_date = lines[date_index]
+        raw_time = lines[date_index + 1]
+
+        day, month_str = self._parse_lum_date_string(raw_date)
+        movie_date = self.validate_and_build_date(day, month_str, raw_time)
+
+        if not movie_date:
+            return None
+
+        clean_title = self._clean_title(raw_title)
+        movie_poster = get_movie_poster(clean_title)
+
+        return Movie(
+            title=clean_title,
+            location="Lugar de la Memoria - Bajada San Martín 151 (Miraflores)",
+            date=movie_date,
+            center="lum",
+            poster_url=movie_poster,
+            source_url=source_url,
+        )
+
+    def _resolve_date_index(self, lines: list[str], start_index: int) -> int:
+        """
+        Busca el índice de la línea que contiene la fecha (basado en nombres de meses).
+        Retorna -1 si no se encuentra.
+        """
+        if start_index >= len(lines):
+            return -1
+
+        for j in range(start_index, len(lines)):
+            line_lower = lines[j].lower()
+            if self.MONTHS_PATTERN.search(line_lower):
+                if re.search(r"\d", line_lower):
+                    return j
+
+        return -1
+
+    def _resolve_title_index(self, lines: list[str]) -> int:
+        """
+        Busca el índice de la línea que contiene el título.
+
+        Estrategia:
+        1. Búsqueda por Keywords ("cine", "película").
+        2. Búsqueda por Estructura (Comillas + Metadata).
+
+        Retorna -1 si no hay título de película.
+        """
+        keyword_index = -1
+
+        # Estrategia 1: Busqueda por keywords
+        for idx, line in enumerate(lines):
+            if any(k in line.lower() for k in self.MOVIE_KEYWORDS):
+                keyword_index = idx
                 break
 
-            if movie_obj.date:
-                movies_to_return.append(movie_obj)
-            else:
+        if keyword_index != -1:
+            if keyword_index + 1 >= len(lines):
+                return keyword_index
+
+            current_line = lines[keyword_index]
+            next_line = lines[keyword_index + 1]
+
+            curr_has_meta = self._has_technical_metadata(current_line)
+            next_has_meta = self._has_technical_metadata(next_line)
+
+            curr_has_colon_title = (
+                ":" in current_line and len(current_line.split(":")[-1].strip()) > 3
+            )
+
+            next_starts_quote = next_line.strip().startswith(('"', "“", "”"))
+
+            if curr_has_meta:
+                return keyword_index
+
+            elif next_has_meta:
+                return keyword_index + 1
+
+            elif curr_has_colon_title:
+                return keyword_index
+
+            elif next_starts_quote:
+                return keyword_index + 1
+
+            return keyword_index
+
+        # Estrategia 2: Busqueda por estructura
+        for idx, line in enumerate(lines):
+            clean_line = line.strip()
+
+            starts_quote = clean_line.startswith(('"', "“", "”"))
+
+            if not starts_quote:
                 continue
 
-        return movies_to_return
+            has_meta_here = self._has_technical_metadata(clean_line)
 
-    def _clean_title(self, event_title: str) -> str:
-        if match := TITLE_PATTERN.search(event_title):
-            return match.group(1).strip()
+            has_meta_next = False
+            if idx + 1 < len(lines):
+                has_meta_next = self._has_technical_metadata(lines[idx + 1])
 
-        return event_title.strip()
+            if has_meta_here or has_meta_next:
+                return idx
+
+        return -1
+
+    async def _extract_clean_lines(self, p_locator: Locator) -> list[str] | None:
+        """
+        Extrae las líneas de texto de un párrafo si contiene un elemento <strong>.
+
+        Retorna None si el párrafo no tiene elemento <strong>.
+        """
+        if await p_locator.locator("strong").count() == 0:
+            return None
+
+        full_text = await p_locator.inner_text()
+
+        lines = [line.strip() for line in full_text.split("\n") if line.strip()]
+
+        return lines if lines else None
+
+    def _clean_title(self, raw_title: str) -> str:
+        """
+        Limpia títulos complejos usando extracción por comillas o limpieza de patrones.
+        """
+        quote_match = self.TITLE_PATTERN.search(raw_title)
+
+        # Si el título a analizar tiene una o más palabras entre comillas
+        # lo más probable es que sea el nombre de la película
+        # así que retornamos eso.
+        if quote_match:
+            return quote_match.group(1).strip()
+
+        # De lo contrario, limpiamos el título
+        clean = raw_title
+
+        clean = self.METADATA_PATTERN.sub("", clean)
+
+        clean = self.DIRECTOR_PATTERN.sub("", clean)
+
+        clean = self.PREFIX_PATTERN.sub("", clean)
+
+        clean = clean.strip(' "“”.,')
+
+        return clean
+
+    def _parse_lum_date_string(self, date_text: str) -> tuple[int, str]:
+        """
+        Parsea fechas con formato "DD de Mes" (ej: '14 de Enero').
+
+        Retorna (0, "") si no encuentra coincidencias.
+        """
+        if match := self.DATE_PATTERN.search(date_text):
+            day = int(match.group(1))
+            month: str = match.group(2).lower()
+            return day, month
+        return 0, ""
+
+    def _has_technical_metadata(self, text: str) -> bool:
+        """Detecta si el texto parece ser una ficha técnica (año o duración entre paréntesis)."""
+        return bool(self.TECHNICAL_METADATA.search(text))

@@ -1,9 +1,9 @@
 import reflex as rx
 
-from agenda_cultural.backend.models import Movies
+from agenda_cultural.backend import Movie
 
 
-def render_movie(movie: Movies) -> rx.Component:
+def render_movie(movie: Movie) -> rx.Component:
     return rx.card(
         # 1. SECCIÓN IMAGEN (Arriba y centrada)
         rx.inset(

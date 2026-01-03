@@ -1,3 +1,10 @@
+"""
+Servicio de integración con la API de The Movie Database (TMDB).
+
+Permite obtener el póster de la películas mediante búsqueda por el título.
+Maneja la autenticación y los posibles errores de red.
+"""
+
 import httpx
 
 from agenda_cultural.backend.log_config import get_task_logger
@@ -7,24 +14,36 @@ from agenda_cultural.backend.config import (
     TMDB_IMAGE_BASE_URL,
 )
 
-logger = get_task_logger("tmdb_client", "tmdb_integration.log")
+# Usamos 'scraping.log' para centralizar todo el flujo del proceso en un solo lugar.
+logger = get_task_logger("tmdb_service", "scraping.log")
+
+# Validación de Configuración (Se ejecuta una sola vez al cargar el módulo)
+if not TMDB_TOKEN:
+    logger.error(
+        "TMDB_TOKEN no configurado. El servicio de imágenes estará deshabilitado."
+    )
 
 
 def get_movie_poster(title: str) -> str | None:
     """
-    Busca una película por título y devuelve la URL absoluta de su póster.
+    Busca una película por su título en TMDB y devuelve la URL absoluta de su póster.
+
+    Args:
+        title (str): Título de la película a buscar.
+
+    Returns:
+        str | None: URL de la imagen si se encuentra, o None si falla/no existe.
     """
+    # Chequeo rápido (Fail Fast): Si no hay token, salimos silenciosamente
+    # porque ya avisamos en el log al inicio del archivo.
     if not TMDB_TOKEN:
-        logger.critical("⚠️ TMDB_TOKEN no configurado en .env")
         return None
 
-    # Headers de autenticación
     headers = {"accept": "application/json", "Authorization": f"Bearer {TMDB_TOKEN}"}
 
-    # Parámetros de búsqueda
     params = {
         "query": title,
-        "include_adult": False,
+        "include_adult": "false",
         "language": "es-PE",
         "page": 1,
     }
@@ -32,29 +51,26 @@ def get_movie_poster(title: str) -> str | None:
     url = f"{TMDB_BASE_URL}/search/movie"
 
     try:
+        # Usamos el cliente como Context Manager para asegurar que se cierre la conexión
         with httpx.Client() as client:
-            # Hacemos la petición GET con timeout de 10s
             response = client.get(url, headers=headers, params=params, timeout=10.0)
 
-            # Si hay error (401, 404, 500), lanzamos excepción
+            # Si hay error (401, 404, 500), lanzamos excepción para capturarla abajo
             response.raise_for_status()
 
             data = response.json()
             results = data.get("results", [])
 
             if results:
-                # 1. Tomamos el primer resultado (el más relevante)
+                # Tomamos el primer resultado como la mejor coincidencia
                 best_match = results[0]
-
-                # 2. Extraemos el 'poster_path'
                 poster_path = best_match.get("poster_path")
 
                 if poster_path:
-                    # 3. Construimos la URL final
-                    full_url = f"{TMDB_IMAGE_BASE_URL}{poster_path}"
-                    return full_url
+                    return f"{TMDB_IMAGE_BASE_URL}{poster_path}"
 
-            logger.warning(f"❌ No se encontró póster para '{title}'")
+            # Si llegamos aquí, la búsqueda fue exitosa pero no trajo resultados o imagen
+            logger.warning(f"No se encontró póster para '{title}'")
             return None
 
     except httpx.HTTPStatusError as e:

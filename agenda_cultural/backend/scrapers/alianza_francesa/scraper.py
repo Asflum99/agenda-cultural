@@ -1,34 +1,32 @@
 import re
-from typing import override
+from typing import override, ClassVar
 from playwright.async_api import async_playwright, Page
 from playwright.async_api import Locator
 from datetime import datetime
 
-from agenda_cultural.backend.models import Movies
+from agenda_cultural.backend.models import Movie
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 from agenda_cultural.backend.services.tmdb_service import get_movie_poster
 
 
 class AlianzaFrancesaScraper(ScraperInterface):
-    ALIANZA_FRANCESA: str = (
-        "https://aflima.org.pe/eventos/?post_type=evento&categoria%5B%5D=cine"
+    START_URL: ClassVar[str] = (
+        "https://aflima.org.pe/eventos/?post_type=evento&categoria[]=cine"
     )
 
     @override
-    async def get_movies(self) -> list[Movies]:
+    async def get_movies(self) -> list[Movie]:
         async with async_playwright() as p:
             browser, page = await self.setup_browser_and_open_page(p)
 
             try:
-                _ = await page.goto(
-                    self.ALIANZA_FRANCESA, wait_until="domcontentloaded"
-                )
+                _ = await page.goto(self.START_URL, wait_until="domcontentloaded")
 
                 # Grupo de secciones que proyectan películas gratuitas
                 free_movies = page.locator(".ctbtn", has_text="Ingreso libre")
                 cine_locators = await free_movies.count()
 
-                movies_info: list[Movies] = []
+                movies_info: list[Movie] = []
 
                 for locator in range(cine_locators):
                     await self._enter_movie_page(locator, page, free_movies)
@@ -52,7 +50,7 @@ class AlianzaFrancesaScraper(ScraperInterface):
 
     async def _get_movies_info(self, movie: int, page: Page):
         try:
-            movie_obj = Movies()
+            movie_obj = Movie()
             movie_box = page.locator(".cajas_cont_item").nth(movie)
 
             blocks = await movie_box.locator(
@@ -135,7 +133,7 @@ class AlianzaFrancesaScraper(ScraperInterface):
             return None
 
     @staticmethod
-    def _order_movies(movies: list[Movies]) -> list[Movies]:
+    def _order_movies(movies: list[Movie]) -> list[Movie]:
         """Ordena las películas por fecha de proyección"""
         valid_movies = [m for m in movies if m.date is not None]
-        return sorted(valid_movies, key=lambda m: m.date)  # pyright: ignore
+        return sorted(valid_movies, key=lambda m: m.date)
