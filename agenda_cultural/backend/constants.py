@@ -1,4 +1,12 @@
-MAPA_MESES = {
+"""
+Constantes globales y diccionarios de mapeo para la aplicación.
+
+Este módulo centraliza valores estáticos y tablas de conversión reutilizables
+por los distintos scrapers y servicios.
+"""
+
+# Mapeo de nombres de meses (completos y abreviados) a su entero correspondiente
+MAPA_MESES: dict[str, int] = {
     "enero": 1,
     "ene": 1,
     "febrero": 2,
