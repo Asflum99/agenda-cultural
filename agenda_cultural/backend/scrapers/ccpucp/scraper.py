@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import override
 from playwright.async_api import async_playwright, Page
-from agenda_cultural.backend.models import Movies
+from agenda_cultural.backend.models import Movie
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 from agenda_cultural.backend.services.tmdb_service import get_movie_poster
 
@@ -21,7 +21,7 @@ class CcpucpScraper(ScraperInterface):
 
                 movies_block = await page.locator("a.subCategoryImage").count()
 
-                movies_info: list[Movies] = []
+                movies_info: list[Movie] = []
 
                 for movie_block in range(movies_block):
                     await page.locator("a.subCategoryImage").nth(movie_block).click()
@@ -39,14 +39,14 @@ class CcpucpScraper(ScraperInterface):
 
             except Exception as e:
                 print(e)
-                return [Movies()]
+                return [Movie()]
 
             finally:
                 await browser.close()
 
     async def _get_movies_info(self, movie: int, page: Page):
         try:
-            movie_obj = Movies()
+            movie_obj = Movie()
 
             movie_title = (
                 await page.locator(MOVIE_TITLE_SELECTOR).nth(movie).inner_text()

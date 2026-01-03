@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import override
 from playwright.async_api import async_playwright, Page
-from agenda_cultural.backend.models import Movies
+from agenda_cultural.backend.models import Movie
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
 from agenda_cultural.backend.services.tmdb_service import get_movie_poster
 
@@ -19,7 +19,7 @@ class BnpScraper(ScraperInterface):
             try:
                 movies = await self._count_movies(page)
 
-                movies_info: list[Movies] = []
+                movies_info: list[Movie] = []
 
                 for movie in range(movies):
                     if movie_info := await self._get_movies_info(movie, page):
@@ -29,14 +29,14 @@ class BnpScraper(ScraperInterface):
 
             except Exception as e:
                 print(e)
-                return [Movies()]
+                return [Movie()]
 
             finally:
                 await browser.close()
 
     async def _get_movies_info(self, movie: int, page: Page):
         try:
-            movie_obj = Movies()
+            movie_obj = Movie()
 
             async with page.context.expect_page() as new_page_info:
                 await page.locator(self.MOVIE_BLOCK).nth(movie).click()
