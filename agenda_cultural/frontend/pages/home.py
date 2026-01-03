@@ -1,5 +1,5 @@
 import reflex as rx
-from agenda_cultural.state.state import State
+from agenda_cultural.state import State
 from agenda_cultural.frontend.components import (
     mobile_feed_view,
     desktop_cinemas_view,

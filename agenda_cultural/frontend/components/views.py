@@ -1,7 +1,7 @@
 import reflex as rx
 
 from agenda_cultural.shared import get_all_center_keys, get_center_info
-from agenda_cultural.state.state import State
+from agenda_cultural.state import State
 from agenda_cultural.styles import NO_SCROLLBAR
 from .movie_card import render_movie
 
