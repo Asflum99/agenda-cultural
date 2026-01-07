@@ -22,9 +22,6 @@ wheels/
 # Secrets
 .env
 
-# Tests incompletos
-tests/
-
 # Logs
 *.log
 *.log.*

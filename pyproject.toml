@@ -29,11 +29,5 @@ dev = [
 "**/models/*.py" = ["F401"]     # Archivos de modelos (por side effects)
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
+pythonpath = ["."]
 testpaths = ["tests"]
-markers = [
-  "unit: marks tests as unit tests",
-  "integration: marks tests as integration tests",
-  "bnp: marks tests as bnp tests",
-  "alianza: marks tests as alianza tests",
-]
