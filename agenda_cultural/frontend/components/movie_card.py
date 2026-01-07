@@ -3,19 +3,51 @@ import reflex as rx
 from agenda_cultural.backend import Movie
 
 
+def render_movie_poster(movie: Movie):
+    """
+    Renderizar el póster si existen.
+    Caso contrario, utiliza un placeholder.
+    """
+    return rx.cond(
+        movie.poster_url,
+        rx.image(
+            src=movie.poster_url,
+            loading="lazy",
+            width="100%",
+            height="auto",
+            style={"aspect-ratio": "2/3"},
+            object_fit="cover",
+        ),
+        rx.center(
+            rx.vstack(
+                rx.text("( ✖ _ ✖ )", font_size="2em", color="#ddd"),
+                rx.text("Se busca", font_weight="bold", color="#ddd"),
+                rx.text(
+                    "Póster no encontrado",
+                    font_size="0.85em",
+                    opacity=0.7,
+                    color="#ddd",
+                ),
+                spacing="2",
+                align_items="center",
+            ),
+            width="100%",
+            height="100%",
+            background_color="#1a1a1a",
+            border="2px dashed #333",
+            padding="1em",
+            color="#666",
+            style={"aspect-ratio": "2/3"},
+        ),
+    )
+
+
 def render_movie(movie: Movie) -> rx.Component:
     return rx.card(
         # 1. SECCIÓN IMAGEN (Arriba y centrada)
         rx.inset(
             rx.center(
-                rx.image(
-                    src=movie.poster_url,
-                    loading="lazy",
-                    width="100%",
-                    height="auto",
-                    style={"aspect-ratio": "2/3"},
-                    object_fit="cover",
-                ),
+                render_movie_poster(movie),
                 width="100%",
                 overflow="hidden",
             ),
