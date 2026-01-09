@@ -299,53 +299,60 @@ class LumScraper(ScraperInterface):
 
     def _resolve_title_index(self, lines: list[str]) -> int:
         """
-        Busca el índice de la línea que contiene el título.
-
-        Estrategia:
-        1. Búsqueda por Keywords ("cine", "película").
-        2. Búsqueda por Estructura (Comillas + Metadata).
-
-        Retorna -1 si no hay título de película.
+        Analiza un párrafo línea por línea para identificar cuál contiene el nombre
+        de la película, usando una jerarquía de confianza
         """
         keyword_index = -1
 
-        # Estrategia 1: Busqueda por keywords
+        # Estrategia 1: Busqueda por palabras clave (Cine, Película, etc)
+        # Primero buscamos si el párrafo tiene un encabezado temático.
         for idx, line in enumerate(lines):
             if any(k in line.lower() for k in self.MOVIE_KEYWORDS):
                 keyword_index = idx
                 break
 
         if keyword_index != -1:
+            # Caso borde: La palabra clave está en la última línea (no hay nada más que buscar)
             if keyword_index + 1 >= len(lines):
                 return keyword_index
 
             current_line = lines[keyword_index]
             next_line = lines[keyword_index + 1]
 
+            # Pre-calculamos indicadores de calidad para decidir donde está el título.
             curr_has_meta = self._has_technical_metadata(current_line)
             next_has_meta = self._has_technical_metadata(next_line)
 
-            curr_has_colon_title = (
-                ":" in current_line and len(current_line.split(":")[-1].strip()) > 3
-            )
+            # Verificamos si hay un título explícito despuésde 'Cine:' o 'Proyección'
+            # (Usamos > 3 para ignorar etiquetas vacías o con ruido)
+            content_after_colon = current_line.split(":")[-1].strip()
+            curr_has_colon_title = ":" in current_line and len(content_after_colon) > 3
 
             next_starts_quote = next_line.strip().startswith(('"', "“", "”"))
 
+            # Jerarquía de decisión
+
+            # 1. Si la línea de la palabra clave ya incluye la ficha técnica.
             if curr_has_meta:
                 return keyword_index
 
-            elif next_has_meta:
-                return keyword_index + 1
-
+            # 2. Si hay un nombre sustancial después de los dos puntos.
             elif curr_has_colon_title:
                 return keyword_index
 
+            # 3. Si la siguiente línea es la ficha técnica, el título es la actual
+            elif next_has_meta:
+                return keyword_index
+
+            # 4. Si la siguiente línea empieza con comillas, el título se movió abajo
             elif next_starts_quote:
                 return keyword_index + 1
 
+            # Por defecto, nos quedamos con la línea donde encontramos la palabra clave
             return keyword_index
 
         # Estrategia 2: Busqueda por estructura
+        # Si no dice "Cine:", buscamos líneas con comillas que tengan metadatos cerca
         for idx, line in enumerate(lines):
             clean_line = line.strip()
 
@@ -354,8 +361,8 @@ class LumScraper(ScraperInterface):
             if not starts_quote:
                 continue
 
+            # Confirmamos que es una película si ella misma o la siguiente tienen (Año) o (Min)
             has_meta_here = self._has_technical_metadata(clean_line)
-
             has_meta_next = False
             if idx + 1 < len(lines):
                 has_meta_next = self._has_technical_metadata(lines[idx + 1])
@@ -363,7 +370,7 @@ class LumScraper(ScraperInterface):
             if has_meta_here or has_meta_next:
                 return idx
 
-        return -1
+        return -1  # No se encontró nada que parezca una película
 
     async def _extract_clean_lines(self, p_locator: Locator) -> list[str] | None:
         """
