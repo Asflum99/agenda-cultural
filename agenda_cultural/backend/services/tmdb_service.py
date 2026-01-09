@@ -7,12 +7,12 @@ Maneja la autenticación y los posibles errores de red.
 
 import httpx
 
-from agenda_cultural.backend.log_config import get_task_logger
 from agenda_cultural.backend.config import (
-    TMDB_TOKEN,
     TMDB_BASE_URL,
     TMDB_IMAGE_BASE_URL,
+    TMDB_TOKEN,
 )
+from agenda_cultural.backend.log_config import get_task_logger
 
 # Usamos 'scraping.log' para centralizar todo el flujo del proceso en un solo lugar.
 logger = get_task_logger("tmdb_service", "scraping.log")
@@ -55,7 +55,7 @@ def get_movie_poster(title: str) -> str | None:
         with httpx.Client() as client:
             response = client.get(url, headers=headers, params=params, timeout=10.0)
 
-            # Si hay error (401, 404, 500), lanzamos excepción para capturarla abajo
+            # Si hay error (40X o 50X), lanzamos excepción para capturarla abajo
             response.raise_for_status()
 
             data = response.json()
