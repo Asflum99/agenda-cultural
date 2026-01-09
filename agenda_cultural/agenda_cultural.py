@@ -5,12 +5,19 @@ Configura el estilo base, importa las páginas para registrarlas en el enrutador
 e inicializa la instancia principal de la App.
 """
 
+import os
+
 import reflex as rx
+from dotenv import load_dotenv
 
 from rxconfig import config
 
 from .backend.models import Movie
 from .frontend.pages import about, home
+
+# Carga variables de entorno para saber si está en producción o local
+load_dotenv()
+
 
 BASE_STYLE: dict = {
     # Se fuerza este color oscuro para evitar, en algunos casos, el flasheo blanco al cargar la página
@@ -18,9 +25,11 @@ BASE_STYLE: dict = {
     "color": "white",
 }
 
-app = rx.App(
-    style=BASE_STYLE,
-    head_components=[
+# Lógica para que Umami solo se ejecute en producción y no en local
+IS_PROD = os.getenv("REFLEX_ENV") == "prod"
+head_comps = []
+if IS_PROD:
+    head_comps.append(
         rx.script(
             src="https://cloud.umami.is/script.js",
             custom_attrs={
@@ -28,5 +37,9 @@ app = rx.App(
             },
             defer=True,
         )
-    ],
+    )
+
+app = rx.App(
+    style=BASE_STYLE,
+    head_components=head_comps,
 )
