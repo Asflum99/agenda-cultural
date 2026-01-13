@@ -37,7 +37,7 @@ def cleanup_past_movies():
         # para que coincida con el formato de la base de datos SQL.
         now_clean = datetime.now(ZoneInfo("America/Lima")).replace(tzinfo=None)
 
-        statement = delete(Movie).where(Movie.date < now_clean)  # ty: ignore[unsupported-operator]
+        statement = delete(Movie).where(Movie.date < now_clean)  # ty: ignore[unsupported-operator, invalid-argument-type]
         session.exec(statement)
         session.commit()
 
