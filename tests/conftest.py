@@ -1,0 +1,17 @@
+import pytest
+from sqlmodel import Session, SQLModel, create_engine
+
+
+@pytest.fixture(name="session")
+def session_fixture():
+    """
+    Fixture global disponible para todos los tests.
+    Crea una DB en memoria limpia para cada ejecución.
+    """
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=None
+    )
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        yield session

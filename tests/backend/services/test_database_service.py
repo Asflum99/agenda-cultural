@@ -11,8 +11,7 @@ Se utiliza una base de datos SQLite en memoria para aislar los tests del archivo
 
 from datetime import datetime
 
-import pytest
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, select
 
 from agenda_cultural.backend.models import Movie
 from agenda_cultural.backend.services.database_service import (
@@ -20,24 +19,6 @@ from agenda_cultural.backend.services.database_service import (
     cleanup_past_movies,
     sync_movies_to_db,
 )
-
-
-@pytest.fixture(name="session")
-def session_fixture():
-    """
-    Crea una base de datos SQLite temporal en memoria RAM.
-
-    Esta fixture se ejecuta antes de cada test, entregando una sesión limpia.
-    Al finalizar el test, la base de datos se destruye automáticamente.
-    """
-    # Usamos 3 barras '///' para indicar una ruta relativa en memoria
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=None
-    )
-    SQLModel.metadata.create_all(engine)
-
-    with Session(engine) as session:
-        yield session
 
 
 def test_filter_new_movies_excludes_duplicates(session: Session):
