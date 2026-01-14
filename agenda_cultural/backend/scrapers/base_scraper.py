@@ -153,6 +153,8 @@ class ScraperInterface(ABC):
 
             return None
 
-        except (ValueError, IndexError, AttributeError):
-            # Captura errores generales de conversión para no romper el scraper completo
+        except (ValueError, AttributeError, TypeError):
+            # ValueError:    Fecha imposible (32 Enero).
+            # AttributeError: Input no es string (.replace() falla).
+            # TypeError:     Pasamos un "15" (str) en vez de 15 (int) al constructor.
             return None
