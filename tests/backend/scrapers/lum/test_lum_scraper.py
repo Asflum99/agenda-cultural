@@ -2,10 +2,12 @@
 Tests unitarios para el Scraper del LUM (Lugar de la Memoria).
 
 Esta suite valida la lógica "offline" del scraper, asegurando que las funciones
-de limpieza, extracción de fechas y heurísticas de detección de títulos
-funcionen correctamente ante diversas variaciones de texto, sin necesidad
-de conectar con el navegador.
+de limpieza, extracción de fechas, heurísticas de detección de títulos
+y ensamblaje de objetos funcionen correctamente ante diversas variaciones
+de texto, sin necesidad de conectar con un navegador real.
 """
+
+from datetime import datetime
 
 import pytest
 from freezegun import freeze_time
@@ -42,7 +44,6 @@ def scraper():
 def test_clean_title(scraper, input_text, expected):
     """
     Valida la limpieza de ruido en los títulos de películas.
-
     Es crucial eliminar años, directores y prefijos para aumentar
     la tasa de éxito en la búsqueda posterior en la API de TMDB.
     """
@@ -88,7 +89,6 @@ def test_parse_lum_date_string(scraper, date_text, expected_day, expected_month)
 def test_has_technical_metadata_logic(scraper, text, expected):
     """
     Valida la detección de líneas que contienen ficha técnica (Año/Duración).
-
     Esta función es vital para distinguir si una línea es un título de película
     o simplemente información técnica sobre la proyección.
     """
@@ -208,3 +208,82 @@ def test_is_relevant_monthly_agenda_no_month_in_title(scraper):
     """Edge Case: Título tiene año pero no mes."""
     title = "agenda 2025"
     assert scraper._is_relevant_monthly_agenda(title) is False
+
+
+# ==============================================================================
+#  BLOQUE 4: ENSAMBLAJE DE PELÍCULA (INTEGRACIÓN)
+#  Pruebas de la función _build_movie_from_lines, mockeando APIs externas.
+# ==============================================================================
+
+
+@freeze_time("2025-10-10 10:00:00")
+def test_build_movie_from_lines_happy_path(scraper, mocker):
+    """
+    Happy Path:
+    - Se extraen datos válidos (Título, Fecha, Hora).
+    - Se infiere el año correcto (2026 siendo Oct 2025).
+    - La API de pósters responde con una URL válida.
+    """
+    mocker_get_movie_poster = mocker.patch(
+        "agenda_cultural.backend.scrapers.lum.scraper.get_movie_poster"
+    )
+    mocker_get_movie_poster.return_value = "poster_url"
+
+    lines = ["Cine: Alien", "bla bla", "20 de enero", "8:00 pm"]
+    title_index = 0
+    date_index = 2
+    source_url = "source_url_random"
+
+    result = scraper._build_movie_from_lines(lines, title_index, date_index, source_url)
+
+    assert result.title == "Alien"
+    assert result.location == "Lugar de la Memoria - Bajada San Martín 151 (Miraflores)"
+    assert result.center == "lum"
+    assert result.date == datetime(2026, 1, 20, 20, 0)
+    assert result.poster_url == "poster_url"
+    assert result.source_url == "source_url_random"
+
+
+@freeze_time("2025-10-10 11:00:00")
+def test_build_movie_returns_none_on_invalid_date(scraper):
+    """
+    Filtro de Validez:
+    - La línea de fecha no contiene información válida.
+    - validate_and_build_date falla internamente.
+    - Se debe retornar None y no crashear.
+    """
+    lines = ["Cine: Alien", "bla bla", "20", "8:00 pm"]
+    title_index = 0
+    date_index = 2
+    source_url = "source_url_random"
+
+    result = scraper._build_movie_from_lines(lines, title_index, date_index, source_url)
+
+    assert result is None
+
+
+@freeze_time("2025-10-10 10:00:00")
+def test_build_movie_handles_missing_poster_gracefully(scraper, mocker):
+    """
+    Resiliencia:
+    - Todo es válido, pero la API externa de pósters falla (retorna None).
+    - La película DEBE crearse igualmente, con poster_url=None.
+    """
+    mocker_get_movie_poster = mocker.patch(
+        "agenda_cultural.backend.scrapers.lum.scraper.get_movie_poster"
+    )
+    mocker_get_movie_poster.return_value = None  # Simula fallo de API
+
+    lines = ["Cine: Alien", "bla bla", "20 de enero", "8:00 pm"]
+    title_index = 0
+    date_index = 2
+    source_url = "source_url_random"
+
+    result = scraper._build_movie_from_lines(lines, title_index, date_index, source_url)
+
+    assert result.title == "Alien"
+    assert result.location == "Lugar de la Memoria - Bajada San Martín 151 (Miraflores)"
+    assert result.center == "lum"
+    assert result.date == datetime(2026, 1, 20, 20, 0)
+    assert result.poster_url is None
+    assert result.source_url == "source_url_random"
