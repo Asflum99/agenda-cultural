@@ -189,7 +189,7 @@ class LumScraper(ScraperInterface):
                   False si es pasada o si no se pudo extraer una fecha válida.
         """
         for month_name, month_num in MAPA_MESES.items():
-            if month_name in title:
+            if month_name in title.lower():
                 if year_match := re.search(r"20\d{2}", title):
                     year = int(year_match.group())
 
