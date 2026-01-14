@@ -52,6 +52,10 @@ class LumScraper(ScraperInterface):
         "documental",
         "proyección",
     )
+    CENTER_SLUG: ClassVar[str] = "lum"
+    CENTER_LOCATION: ClassVar[str] = (
+        "Lugar de la Memoria - Bajada San Martín 151 (Miraflores)"
+    )
 
     # Los selectores de la página principal de actividades
     ACTIVITY_BLOCK_SELECTOR: ClassVar[str] = ".views-row"
@@ -274,9 +278,9 @@ class LumScraper(ScraperInterface):
 
         return Movie(
             title=clean_title,
-            location="Lugar de la Memoria - Bajada San Martín 151 (Miraflores)",
+            location=self.CENTER_LOCATION,
             date=movie_date,
-            center="lum",
+            center=self.CENTER_SLUG,
             poster_url=movie_poster,
             source_url=source_url,
         )
