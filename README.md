@@ -21,7 +21,7 @@ Aplicación web que recopila y presenta la cartelera de películas en centros cu
 
 ## Estructura del proyecto
 
-```
+```bash
 agenda_cultural/
 ├── agenda_cultural/          # Aplicación principal
 │   ├── backend/              # Scraping y lógica de negocio
@@ -50,7 +50,7 @@ Asegúrate de tener instalado:
 ### 1. Clonar el repositorio
 Descarga el código fuente y entra en la carpeta del proyecto:
 ```bash
-git clone [https://github.com/Asflum99/agenda-cultural.git](https://github.com/Asflum99/agenda-cultural.git)
+git clone https://github.com/Asflum99/agenda-cultural.git
 cd agenda-cultural
 ```
 
@@ -58,35 +58,41 @@ cd agenda-cultural
 El proyecto necesita ciertas claves para funcionar. Crea un archivo .env en la raíz del proyecto y configura los siguientes valores:
 ```bash
 # Variables para Docker
-POSTGRES_USER=my_user
-POSTGRES_PASSWORD=my_password
+POSTGRES_USER="my_user"
+POSTGRES_PASSWORD="my_password"
 
 # URL de conexión a la base de datos (usa los valores configurados arriba)
 DATABASE_URL="postgresql://my_user:my_password@localhost:5432/movies_db"
 
 # API Keys y Entorno
 TMDB_TOKEN="TU_TOKEN"
+
+# Opcionales (Configuración por defecto si se omiten)
+# REFLEX_ENV="dev"
+# API_URL="http://localhost:8000"
+# UMAMI_WEBSITE_ID=""
 ```
 
-### 4. Iniciar la Base de datos
+### 3. Iniciar la Base de datos
 Uso de Docker para levantar PostgreSQL rápidamente.
 ```bash
 docker compose up -d
 ```
 
-### 5. Instalación y preparación del entorno
+### 4. Instalación y preparación del entorno
+Instalamos las dependencias necesarias
 ```bash
 uv sync
 uv run playwright install
 ```
 
-### 6. Configurar la Base de Datos
-Usamos uv para sincronizar el entorno virtual y las dependencias.
+### 5. Configurar la Base de Datos
+Aplicamos las migraciones para crear las tablas necesarias en PostgreSQL.
 ```bash
 uv run reflex db migrate
 ```
 
-### 7. Lanzar aplicación
+### 6. Lanzar aplicación
 Una vez hecha toda la configuración previa, ya se puede ejecutar la página web con el siguiente comando:
 ```bash
 # Obtener cartelera actual
