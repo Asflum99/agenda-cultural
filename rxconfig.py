@@ -1,21 +1,17 @@
-import reflex as rx
 import os
+
+import reflex as rx
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-if os.getenv("REFLEX_ENV") == "prod":
-    # CONFIGURACIÓN PARA AWS
-    my_api_url = "https://agendacultural.duckdns.org"
-else:
-    # CONFIGURACIÓN PARA LOCAL
-    my_api_url = "http://localhost:8000"
+api_url = os.getenv("API_URL", "http://localhost:8000")
 
 config = rx.Config(
     app_name="agenda_cultural",
     # Asignamos la URL dinámica
-    api_url=my_api_url,
+    api_url=api_url,
     plugins=[
         rx.plugins.SitemapPlugin(),
         rx.plugins.TailwindV4Plugin(),
