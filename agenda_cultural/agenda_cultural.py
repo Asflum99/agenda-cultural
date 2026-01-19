@@ -27,8 +27,11 @@ BASE_STYLE: dict = {
 
 # Lógica para que Umami solo se ejecute en producción y no en local
 IS_PROD = os.getenv("REFLEX_ENV") == "prod"
+UMAMI_ID = os.getenv("UMAMI_WEBSITE_ID")
+
 head_comps = []
-if IS_PROD:
+
+if IS_PROD and UMAMI_ID:
     head_comps.append(
         rx.script(
             src="https://cloud.umami.is/script.js",
