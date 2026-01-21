@@ -27,7 +27,7 @@ def test_movies_by_center_groups_correctly(mocker):
     # Esto aísla el test de cambios en la configuración global.
     mocker.patch(
         "agenda_cultural.state.get_all_center_keys",
-        return_value=["alianza francesa", "lum", "ccpucp"],
+        return_value=["alianza_francesa", "lum", "ccpucp"],
     )
 
     state = State()
@@ -37,7 +37,7 @@ def test_movies_by_center_groups_correctly(mocker):
         title="El evangelio...",
         location="AF",
         date=datetime(2026, 4, 12),
-        center="alianza francesa",
+        center="alianza_francesa",
     )
 
     # Caso B: Cine con 2 películas (Prueba de agrupación/append)
@@ -58,8 +58,8 @@ def test_movies_by_center_groups_correctly(mocker):
     # === ASSERT (Verificar) ===
 
     # 1. Verificar agrupación simple
-    assert len(result["alianza francesa"]) == 1
-    assert result["alianza francesa"][0].title == "El evangelio..."
+    assert len(result["alianza_francesa"]) == 1
+    assert result["alianza_francesa"][0].title == "El evangelio..."
 
     # 2. Verificar agrupación múltiple (que no se sobrescriban)
     assert len(result["lum"]) == 2
