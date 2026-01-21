@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import ClassVar
@@ -62,8 +63,11 @@ class ScraperInterface(ABC):
             tuple[Browser, Page]: Una tupla conteniendo la instancia del navegador
             y la página (tab) creada.
         """
+        is_headless = (
+            os.getenv("SCRAPER_HEADLESS", "true").lower() == "true"
+        )  # Determina si es parte de debugging o producción
         browser = await p.chromium.launch(
-            headless=True,
+            headless=is_headless,
             args=self.CHROMIUM_ARGS,
         )
 
