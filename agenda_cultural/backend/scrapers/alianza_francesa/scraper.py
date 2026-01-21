@@ -97,7 +97,7 @@ class AlianzaFrancesaScraper(ScraperInterface):
                 movie_obj.title = clean_title
                 movie_obj.poster_url = poster_url
 
-            movie_obj.center = "alianza francesa"
+            movie_obj.center = "alianza_francesa"
             movie_obj.source_url = page.url
 
             return movie_obj
