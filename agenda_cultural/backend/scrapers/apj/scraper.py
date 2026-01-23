@@ -39,6 +39,10 @@ class ApjScraper(ScraperInterface):
         "sábado",
         "domingo",
     ]
+    SPECIFIC_DETAILS: ClassVar[str] = ".w-55 .mb-3"
+    DATE_PATTERN: Pattern[str] = re.compile(r"(\d+)")
+    TITLE_PATTERN: Pattern[str] = re.compile(r"\s*\(\d{4}\)$")
+    TITLE_SELECTOR: ClassVar[str] = "strong em"
 
     @override
     async def get_movies(self):
@@ -55,11 +59,13 @@ class ApjScraper(ScraperInterface):
 
                 if cinema_filter:
                     # Busca las películas a proyectarse
-                    movies_found = await self._search_movie_proyections(page)
+                    movies_found, month, year = await self._search_movie_proyections(
+                        page
+                    )
 
-                    # Iterar sobre las películas
+                    # Itera sobre las películas
                     if movies_found:
-                        await self._extract_movies_info(page, movies_found)
+                        await self._extract_movies_info(page, movies_found, month, year)
 
             except Exception as e:
                 logger.error(f"Error en APJ Scraper: {e}", exc_info=True)
@@ -81,7 +87,9 @@ class ApjScraper(ScraperInterface):
 
         return False
 
-    async def _search_movie_proyections(self, page: Page) -> list[str | None]:
+    async def _search_movie_proyections(
+        self, page: Page
+    ) -> tuple[list[str | None], int, int]:
         weeks_locator = await page.locator(self.WEEKS_SELECTOR).all()
         movies_links = []
 
@@ -113,13 +121,33 @@ class ApjScraper(ScraperInterface):
                 else:
                     continue
 
-        return movies_links
+        if len(movies_links) > 0:
+            year_str = await page.locator(".anio .select-selected").inner_text()
+            year = int(year_str)
+            month_str = await page.locator(".mes .select-selected").inner_text()
+            month = MAPA_MESES[month_str.strip().lower()]
 
-    async def _extract_movies_info(self, page: Page, movies_found: list):
+        return movies_links, month, year
+
+    async def _extract_movies_info(
+        self, page: Page, movies_found: list, month: int, year: int
+    ):
         for movie in movies_found:
             await page.goto(movie, wait_until="load")
             event_details = await page.locator(self.EVENT_GENERAL_DETAILS).all()
-            for detail in event_details:
-                text = await detail.inner_text()
-                if text.lower() in self.DAYS:
-                    continue
+            # Extrae hora de proyección y lugar de proyección
+            if len(event_details) >= 3:
+                time_element = event_details[1]
+                time_text = await time_element.inner_text()
+
+                location_element = event_details[2]
+                location_text = await location_element.inner_text()
+            else:
+                logger.error("Estructura inesperada: faltan detalles del evento.")
+
+            specific_details = await page.locator(self.SPECIFIC_DETAILS).all()
+            for detail in specific_details:
+                date_match = self.DATE_PATTERN.search(await detail.inner_text())
+                title = self.TITLE_PATTERN.sub("", await detail.inner_text())
+                if date_match:
+                    date = int(date_match.group())
