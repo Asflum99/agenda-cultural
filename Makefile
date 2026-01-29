@@ -27,7 +27,7 @@ _build_frontend:
 	rm -rf frontend.zip .web
 	
 	# 2. Generación
-	uv run reflex export --frontend-only
+	uv run reflex export --frontend-only --env prod
 	
 	@echo "--- 🌐 Actualizando Nginx ---"
 	# 3. Limpieza del directorio público
