@@ -8,9 +8,12 @@ Provee una fábrica de loggers que estandariza:
 """
 
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+import watchtower
 
 
 def get_task_logger(logger_name: str, log_filename: str) -> logging.Logger:
@@ -72,5 +75,14 @@ def get_task_logger(logger_name: str, log_filename: str) -> logging.Logger:
     # 6. Asignación final
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+
+    enable_cloudwatch = os.getenv("ENABLE_CLOUDWATCH_LOGS", "false").lower() == "true"
+    if enable_cloudwatch:
+        cloudwatch_handler = watchtower.CloudWatchLogHandler(
+            "agenda-cultural-scrapers", logger_name
+        )
+        cloudwatch_handler.setFormatter(log_formatter)
+        cloudwatch_handler.setLevel(logging.INFO)
+        logger.addHandler(cloudwatch_handler)
 
     return logger
