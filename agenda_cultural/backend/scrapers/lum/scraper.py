@@ -30,6 +30,7 @@ LÓGICA HEURÍTICA:
 """
 
 import re
+import time
 from datetime import datetime
 from typing import ClassVar, Pattern, override
 
@@ -132,7 +133,21 @@ class LumScraper(ScraperInterface):
             browser, page = await self.setup_browser_and_open_page(p)
 
             try:
-                await page.goto(self.START_URL, wait_until="load")
+                start_time = time.time()
+                await page.goto(self.START_URL, wait_until="load", timeout=60000)
+                total_time = time.time() - start_time
+
+                logger.info(f"Tiempo total de carga: {total_time:.2f}s")
+
+                # ESTO SERÁ TEMPORAL
+                await page.wait_for_load_state("domcontentloaded")
+                dom_elements = await page.locator(self.ACTIVITY_BLOCK_SELECTOR).count()
+                logger.info(f"Elementos después de domcontentloaded = {dom_elements}")
+
+                await page.wait_for_load_state("load")
+                load_elements = await page.locator(self.ACTIVITY_BLOCK_SELECTOR).count()
+                logger.info(f"Elementos después de load: {load_elements}")
+                # ESTO SERÁ TEMPORAL
 
                 activity_blocks = page.locator(self.ACTIVITY_BLOCK_SELECTOR)
                 total_blocks = await activity_blocks.count()
