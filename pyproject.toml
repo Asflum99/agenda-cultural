@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
   "apscheduler>=3.11.1",
+  "boto3>=1.42.40",
   "httpx>=0.28.1",
   "playwright>=1.56.0",
   "psycopg2-binary>=2.9.11",
@@ -14,6 +15,7 @@ dependencies = [
   "reflex>=0.8.21",
   "respx>=0.22.0",
   "sqlalchemy>=2.0.44",
+  "watchtower>=3.4.0",
 ]
 
 [dependency-groups]
