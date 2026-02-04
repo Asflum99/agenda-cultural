@@ -13,7 +13,10 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+import boto3
 import watchtower
+
+REGION = os.getenv("AWS_REGION", "us-east-1")
 
 
 def get_task_logger(logger_name: str, log_filename: str) -> logging.Logger:
@@ -79,7 +82,9 @@ def get_task_logger(logger_name: str, log_filename: str) -> logging.Logger:
     enable_cloudwatch = os.getenv("ENABLE_CLOUDWATCH_LOGS", "false").lower() == "true"
     if enable_cloudwatch:
         cloudwatch_handler = watchtower.CloudWatchLogHandler(
-            "agenda-cultural-scrapers", logger_name
+            log_group_name="agenda-cultural-scrapers",
+            log_stream_name=logger_name,
+            boto3_client=boto3.client("logs", region_name=REGION),
         )
         cloudwatch_handler.setFormatter(log_formatter)
         cloudwatch_handler.setLevel(logging.INFO)
