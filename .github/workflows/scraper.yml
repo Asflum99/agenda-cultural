@@ -13,6 +13,14 @@ jobs:
     - name: Checkout código
       uses: actions/checkout@v4
 
+    - name: Preparar Túnel SSM
+      run: |
+        fuser -k 5433/tcp || true 
+        
+        ssh -o StrictHostKeyChecking=no -f -N -L 5433:${{ secrets.RDS_ENDPOINT }}:5432 aws        
+
+        sleep 5
+
     - name: Sincronizar Entorno y Ejecutar
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -23,9 +31,6 @@ jobs:
         ENABLE_CLOUDWATCH_LOGS: "true"
       run: |
         export PATH="$HOME/.local/bin:$PATH"
-        
         uv sync
-        
         uv run playwright install chromium
-        
         uv run run_scraper.py
