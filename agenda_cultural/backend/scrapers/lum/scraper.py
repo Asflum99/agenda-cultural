@@ -30,6 +30,7 @@ LÓGICA HEURÍTICA:
 """
 
 import re
+import time
 from datetime import datetime
 from typing import ClassVar, Pattern, override
 
@@ -139,7 +140,21 @@ class LumScraper(ScraperInterface):
             browser, page = await self.setup_browser_and_open_page(p)
 
             try:
-                await page.goto(self.START_URL, wait_until="domcontentloaded", timeout=45000)
+                # ESTO SERÁ TEMPORAL
+                logger.info(f"Starting navigation to {self.START_URL}")
+                start_time = time.time()
+
+                await page.goto(
+                    self.START_URL, wait_until="domcontentloaded", timeout=45000
+                )
+
+                duration = time.time() - start_time
+                logger.info(f"Navigation completed in {duration:.2f}s")
+
+                # Verificar redirecciones
+                if page.url != self.START_URL:
+                    logger.warning(f"Redirect detected: {self.START_URL} -> {page.url}")
+                # ESTO SERÁ TEMPORAL
 
                 activity_blocks = await page.locator(self.EVENT_TITLE).all()
 
@@ -166,6 +181,15 @@ class LumScraper(ScraperInterface):
                             break
 
             except Exception as e:
+                if "timeout" in str(e).lower():
+                    logger.error(
+                        f"Timeout detected during navigation to {self.START_URL}"
+                    )
+                    try:
+                        logger.error(f"Page state at timeout - URL: {page.url}")
+                    except Exception:
+                        logger.error("Could not determine page state at timeout")
+
                 logger.error(f"Error en LUM Scraper: {e}", exc_info=True)
 
             finally:
