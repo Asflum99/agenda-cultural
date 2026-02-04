@@ -59,12 +59,10 @@ class LumScraper(ScraperInterface):
     )
 
     # Los selectores de la página principal de actividades
-    ACTIVITY_BLOCK_SELECTOR: ClassVar[str] = ".views-row"
-    BLOCK_TITLE_SELECTOR: ClassVar[str] = ".views-field-title"
+    EVENT_TITLE: ClassVar[str] = ".views-field-title a"
 
     # Los selectores de los párrafos donde está el contenido de las películas
     PARAGRAPH_SELECTOR: ClassVar[str] = ".field-item p"
-    MOVIE_TITLE_SELECTOR: ClassVar[str] = ".field-item p strong"
 
     # Captura de texto entre comillas, con soporte para tipográficas y rectas
     TITLE_PATTERN: Pattern[str] = re.compile(
@@ -121,6 +119,15 @@ class LumScraper(ScraperInterface):
 
     DATE_PATTERN: Pattern[str] = re.compile(r"(\d{1,2})\s+de\s+([a-zA-Z]+)")
 
+    TIME_PATTERN: Pattern[str] = re.compile(
+        r"""
+        [1-9]:[0-5][0-9]        # 1-9:MM (ej: 7:00)
+        \s*                     # Espacios opcionales
+        p\.?\s*m\.?             # 'pm' o 'p.m.' o 'p. m.'
+    """,
+        re.VERBOSE | re.IGNORECASE,
+    )
+
     MONTHS_PATTERN: Pattern[str] = re.compile(
         r"\b(" + "|".join(MAPA_MESES.keys()) + r")\b", re.IGNORECASE
     )
@@ -133,28 +140,25 @@ class LumScraper(ScraperInterface):
             browser, page = await self.setup_browser_and_open_page(p)
 
             try:
+                # ESTO SERÁ TEMPORAL
+                logger.info(f"Starting navigation to {self.START_URL}")
                 start_time = time.time()
-                await page.goto(self.START_URL, wait_until="load", timeout=60000)
-                total_time = time.time() - start_time
 
-                logger.info(f"Tiempo total de carga: {total_time:.2f}s")
+                await page.goto(
+                    self.START_URL, wait_until="domcontentloaded", timeout=45000
+                )
 
-                # ESTO SERÁ TEMPORAL
-                await page.wait_for_load_state("domcontentloaded")
-                dom_elements = await page.locator(self.ACTIVITY_BLOCK_SELECTOR).count()
-                logger.info(f"Elementos después de domcontentloaded = {dom_elements}")
+                duration = time.time() - start_time
+                logger.info(f"Navigation completed in {duration:.2f}s")
 
-                await page.wait_for_load_state("load")
-                load_elements = await page.locator(self.ACTIVITY_BLOCK_SELECTOR).count()
-                logger.info(f"Elementos después de load: {load_elements}")
+                # Verificar redirecciones
+                if page.url != self.START_URL:
+                    logger.warning(f"Redirect detected: {self.START_URL} -> {page.url}")
                 # ESTO SERÁ TEMPORAL
 
-                activity_blocks = page.locator(self.ACTIVITY_BLOCK_SELECTOR)
-                total_blocks = await activity_blocks.count()
+                activity_blocks = await page.locator(self.EVENT_TITLE).all()
 
-                for i in range(total_blocks):
-                    block = activity_blocks.nth(i)
-
+                for index, block in enumerate(activity_blocks):
                     title_clean = await self._extract_activity_title(block)
 
                     if not title_clean:
@@ -164,8 +168,11 @@ class LumScraper(ScraperInterface):
                         continue
 
                     if self._is_relevant_monthly_agenda(title_clean):
-                        await page.locator(self.ACTIVITY_BLOCK_SELECTOR).nth(i).click()
-                        await page.wait_for_load_state("load")
+                        # Promesa de que al hacer click, haya un cambio de página (cambio de URL)
+                        async with page.expect_navigation(
+                            wait_until="domcontentloaded", timeout=15000
+                        ):
+                            await page.locator(self.EVENT_TITLE).nth(index).click()
 
                         if movies_scraped := await self._extract_movies_from_agenda(
                             page
@@ -174,6 +181,15 @@ class LumScraper(ScraperInterface):
                             break
 
             except Exception as e:
+                if "timeout" in str(e).lower():
+                    logger.error(
+                        f"Timeout detected during navigation to {self.START_URL}"
+                    )
+                    try:
+                        logger.error(f"Page state at timeout - URL: {page.url}")
+                    except Exception:
+                        logger.error("Could not determine page state at timeout")
+
                 logger.error(f"Error en LUM Scraper: {e}", exc_info=True)
 
             finally:
@@ -187,9 +203,7 @@ class LumScraper(ScraperInterface):
 
         Retorna None si encuentra un texto vacío.
         """
-        title_element = block.locator(self.BLOCK_TITLE_SELECTOR).first
-
-        title_text = await title_element.inner_text()
+        title_text = await block.inner_text()
 
         # En caso retorne una cadena vacía, sigue siendo str, pero es False
         if not title_text:
@@ -230,14 +244,11 @@ class LumScraper(ScraperInterface):
 
         Retorna una lista con los objetos Movie.
         """
-        paragraphs = page.locator(self.PARAGRAPH_SELECTOR)
-        count = await paragraphs.count()
+        paragraphs = await page.locator(self.PARAGRAPH_SELECTOR).all()
         movies_found: list[Movie] = []
 
-        for i in range(count):
-            p_locator = paragraphs.nth(i)
-
-            lines = await self._extract_clean_lines(p_locator)
+        for paragraph in paragraphs:
+            lines = await self._extract_clean_lines(paragraph)
 
             if not lines:
                 continue
@@ -280,7 +291,12 @@ class LumScraper(ScraperInterface):
         """
         raw_title = lines[title_index]
         raw_date = lines[date_index]
-        raw_time = lines[date_index + 1]
+        raw_time = self._find_time_after_index(lines, date_index)
+        if not raw_time:
+            logger.error(
+                f"No se encontró hora válida después de la fecha en índice {date_index}"
+            )
+            return None
 
         day, month_str = self._parse_lum_date_string(raw_date)
         movie_date = self.validate_and_build_date(day, month_str, raw_time)
@@ -391,16 +407,16 @@ class LumScraper(ScraperInterface):
 
         return -1  # No se encontró nada que parezca una película
 
-    async def _extract_clean_lines(self, p_locator: Locator) -> list[str] | None:
+    async def _extract_clean_lines(self, paragraph: Locator) -> list[str] | None:
         """
         Extrae las líneas de texto de un párrafo si contiene un elemento <strong>.
 
         Retorna None si el párrafo no tiene elemento <strong>.
         """
-        if await p_locator.locator("strong").count() == 0:
+        if await paragraph.locator("strong").count() == 0:
             return None
 
-        full_text = await p_locator.inner_text()
+        full_text = await paragraph.inner_text()
 
         lines = [line.strip() for line in full_text.split("\n") if line.strip()]
 
@@ -430,6 +446,30 @@ class LumScraper(ScraperInterface):
         clean = clean.strip(' "“”.,')
 
         return clean
+
+    def _find_time_after_index(self, lines: list[str], start_index: int) -> str | None:
+        """
+        Busca dinámicamente la hora en las líneas siguientes al índice de fecha.
+
+        Args:
+            lines: Lista de líneas de texto del párrafo
+            start_index: Índice de la fecha para buscar después
+
+        Returns:
+            str | None: Texto de hora encontrado o None si no se encuentra
+        """
+        # Buscar en las siguientes 3 líneas máximo
+        search_limit = min(start_index + 3, len(lines))
+
+        for i in range(start_index + 1, search_limit):
+            line = lines[i].strip()
+            if not line:  # Skip líneas vacías
+                continue
+
+            if self.TIME_PATTERN.search(line):
+                return line
+
+        return None
 
     def _parse_lum_date_string(self, date_text: str) -> tuple[int, str]:
         """
