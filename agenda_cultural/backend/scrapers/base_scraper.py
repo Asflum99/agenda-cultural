@@ -71,7 +71,10 @@ class ScraperInterface(ABC):
             args=self.CHROMIUM_ARGS,
         )
 
-        context = await browser.new_context(user_agent=self.USER_AGENT)
+        context = await browser.new_context(
+            user_agent=self.USER_AGENT,
+            ignore_https_errors=True,  # Ignora errores de certificado SSL
+        )
         page = await context.new_page()
         return browser, page
 
