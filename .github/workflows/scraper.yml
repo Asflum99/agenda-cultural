@@ -1,0 +1,35 @@
+name: Ejecutar Scraper Local
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 19 * * *'
+
+jobs:
+  scrape:
+    runs-on: [self-hosted, linux, local-scraper]
+
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v4
+
+    - name: Instalar uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Instalar Python y Dependencias
+      run: |
+        source $HOME/.cargo/env || true
+        uv sync
+
+    - name: Instalar Navegadores de Playwright 🎭
+      run: |
+        source $HOME/.cargo/env || true
+        uv run playwright install chromium --with-deps
+
+    - name: Ejecutar Scraper
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        TMDB_TOKEN: ${{ secrets.TMDB_TOKEN  }}
+      run: |
+        source $HOME/.cargo/env || true
+        uv run run_scraper.py
