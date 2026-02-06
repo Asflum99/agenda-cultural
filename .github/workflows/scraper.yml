@@ -17,6 +17,10 @@ jobs:
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
         TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: "us-east-1"
+        ENABLE_CLOUDWATCH_LOGS: "true"
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         

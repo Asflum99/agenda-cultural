@@ -16,8 +16,6 @@ from pathlib import Path
 import boto3
 import watchtower
 
-REGION = os.getenv("AWS_REGION", "us-east-1")
-
 
 def get_task_logger(logger_name: str, log_filename: str) -> logging.Logger:
     """
@@ -84,7 +82,7 @@ def get_task_logger(logger_name: str, log_filename: str) -> logging.Logger:
         cloudwatch_handler = watchtower.CloudWatchLogHandler(
             log_group_name="agenda-cultural-scrapers",
             log_stream_name=logger_name,
-            boto3_client=boto3.client("logs", region_name=REGION),
+            boto3_client=boto3.client("logs"),
         )
         cloudwatch_handler.setFormatter(log_formatter)
         cloudwatch_handler.setLevel(logging.INFO)
