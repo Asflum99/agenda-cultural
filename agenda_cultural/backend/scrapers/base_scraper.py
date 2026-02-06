@@ -22,8 +22,6 @@ class ScraperInterface(ABC):
     CHROMIUM_ARGS: ClassVar[list[str]] = [
         "--disable-dev-shm-usage",
         "--disable-extensions",
-        "--disable-gpu",
-        "--disable-web-security",
         "--disable-features=TranslateUI",
         "--disable-ipc-flooding-protection",
         "--no-sandbox",
@@ -31,6 +29,7 @@ class ScraperInterface(ABC):
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
+        "--disable-blink-features=AutomationControlled",
     ]
 
     # User Agent genérico de Chrome en Windows para evitar bloqueos simples
@@ -73,7 +72,9 @@ class ScraperInterface(ABC):
 
         context = await browser.new_context(
             user_agent=self.USER_AGENT,
-            ignore_https_errors=True,  # Ignora errores de certificado SSL
+            ignore_https_errors=True,
+            locale="es-PE",
+            timezone_id="America/Lima",
         )
         page = await context.new_page()
         return browser, page
