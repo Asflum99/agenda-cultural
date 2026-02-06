@@ -34,6 +34,7 @@ from datetime import datetime
 from typing import ClassVar, Pattern, override
 
 from playwright.async_api import Locator, Page, async_playwright
+from playwright_stealth import Stealth
 
 from agenda_cultural.backend.constants import MAPA_MESES
 from agenda_cultural.backend.log_config import get_task_logger
@@ -135,11 +136,13 @@ class LumScraper(ScraperInterface):
     async def get_movies(self):
         movies: list[Movie] = []
 
-        async with async_playwright() as p:
+        async with Stealth().use_async(async_playwright()) as p:
             browser, page = await self.setup_browser_and_open_page(p)
 
             try:
-                await page.goto(self.START_URL, wait_until="domcontentloaded")
+                await page.goto(
+                    self.START_URL, wait_until="domcontentloaded", timeout=60000
+                )
 
                 activity_blocks = await page.locator(self.EVENT_TITLE).all()
 
