@@ -129,9 +129,23 @@ async def run_debug(scraper_key: str):
 
         print("\n" + "=" * 50)
         print(f"✅ Finalizado: {len(movies)} películas encontradas")
-        # Preview de datos
+        print("=" * 50 + "\n")
+
+        # Mostrar todas las películas con formato ordenado
         if movies:
-            print(f"   Ejemplo: {movies[0]}")
+            for i, movie in enumerate(movies, 1):
+                print(f"🎬 Película {i}")
+                print(f"   Título: {movie.title}")
+                print(f"   Ubicación: {movie.location}")
+                print(f"   Fecha: {movie.date}")
+                print(f"   Centro: {movie.center}")
+                print(f"   Póster: {movie.poster_url or 'N/A'}")
+                print(f"   URL: {movie.source_url or 'N/A'}")
+                print("   " + "─" * 40)
+                print()
+        else:
+            print("   ⚠️  No se encontraron películas.")
+
         print("=" * 50 + "\n")
 
     except Exception as e:
