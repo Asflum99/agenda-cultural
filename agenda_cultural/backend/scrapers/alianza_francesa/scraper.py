@@ -1,8 +1,8 @@
 import re
-from typing import override, ClassVar
-from playwright.async_api import async_playwright, Page
-from playwright.async_api import Locator
 from datetime import datetime
+from typing import ClassVar, Pattern, override
+
+from playwright.async_api import Locator, Page, async_playwright
 
 from agenda_cultural.backend.models import Movie
 from agenda_cultural.backend.scrapers.base_scraper import ScraperInterface
@@ -13,33 +13,38 @@ class AlianzaFrancesaScraper(ScraperInterface):
     START_URL: ClassVar[str] = (
         "https://aflima.org.pe/eventos/?post_type=evento&categoria[]=cine"
     )
+    DATE_PATTERN: Pattern[str] = re.compile(
+        r"(?i)(Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo)\s+(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre),\s+(\d{1,2}:\d{2})\s+([ap]\.?\s?m\.?)"
+    )
 
     @override
     async def get_movies(self) -> list[Movie]:
+        movies: list[Movie] = []
+
         async with async_playwright() as p:
             browser, page = await self.setup_browser_and_open_page(p)
 
             try:
-                _ = await page.goto(self.START_URL, wait_until="domcontentloaded")
+                await page.goto(self.START_URL, wait_until="domcontentloaded")
 
                 # Grupo de secciones que proyectan películas gratuitas
-                free_movies = page.locator(".ctbtn", has_text="Ingreso libre")
-                cine_locators = await free_movies.count()
+                free_movies_locator = await page.locator(
+                    ".ctbtn", has_text="Ingreso libre"
+                ).all()
 
-                movies_info: list[Movie] = []
+                for free_movie in free_movies_locator:
+                    await free_movie.locator("a.btn-outline-primary").click()
+                    await page.wait_for_load_state("domcontentloaded")
 
-                for locator in range(cine_locators):
-                    await self._enter_movie_page(locator, page, free_movies)
+                    free_movies = await page.locator(".cajas_cont_item.cine").all()
 
-                    movies = await page.locator(".cajas_cont_item").count()
+                    for free_movie in free_movies:
+                        if movie_info := await self._get_movie_info(free_movie, page):
+                            movies.append(movie_info)
 
-                    for movie in range(movies):
-                        if movie_info := await self._get_movies_info(movie, page):
-                            movies_info.append(movie_info)
+                    await page.go_back(wait_until="domcontentloaded")
 
-                    _ = await page.go_back(wait_until="domcontentloaded")
-
-                return self._order_movies(movies_info)
+                return self._order_movies(movies)
 
             except Exception as e:
                 print(e)
@@ -48,19 +53,24 @@ class AlianzaFrancesaScraper(ScraperInterface):
             finally:
                 await browser.close()
 
-    async def _get_movies_info(self, movie: int, page: Page):
+    async def _get_movie_info(self, movie: Locator, page: Page):
         try:
-            movie_obj = Movie()
-            movie_box = page.locator(".cajas_cont_item").nth(movie)
+            movie_info = movie.locator(".cajas_cont_item_info")
 
-            blocks = await movie_box.locator(
-                ".cajas_cont_item_info .cajas__info_fecha2"
-            ).count()
+            raw_movie_date_and_location = await movie_info.locator(
+                ".cajas__info_fecha2"
+            ).all()
 
             keys = ["date", "location"]
-            for block in range(blocks):
+            for block in raw_movie_date_and_location:
+                raw_info = await block.text_content()
+                if not raw_info:
+                    continue
+
+                if raw_date := self.DATE_PATTERN.search(raw_info):
+                    pass
                 if (
-                    raw_info := await movie_box.locator(
+                    raw_info := await movie.locator(
                         ".cajas_cont_item_info .cajas__info_fecha2"
                     )
                     .nth(block)
@@ -76,7 +86,7 @@ class AlianzaFrancesaScraper(ScraperInterface):
                         if date_obj is None:
                             continue
 
-                        movie_obj.date = date_obj
+                        movie_date = date_obj
                     else:
                         # Explicación del regex:
                         # \(([^,]+)   -> Grupo 1: Busca paréntesis y captura todo hasta la coma (Avenida)
@@ -85,29 +95,26 @@ class AlianzaFrancesaScraper(ScraperInterface):
                         if match := re.search(r"\(([^,]+),\s*([^)]+)\)", info):
                             avenue = match.group(1).strip()
                             district = match.group(2).strip()
-                            movie_obj.location = (
-                                f"Alianza Francesa de {district} - {avenue}"
-                            )
+                            location = f"Alianza Francesa de {district} - {avenue}"
 
-            if raw_title := await movie_box.locator(
+            if raw_title := await movie.locator(
                 ".cajas_cont_item_fecha .cajas__fecha_txt"
             ).text_content():
                 clean_title = raw_title.replace("\n", " ").strip()
                 poster_url = get_movie_poster(clean_title)
-                movie_obj.title = clean_title
-                movie_obj.poster_url = poster_url
+                movie_title = clean_title
+                poster_url = poster_url
 
-            movie_obj.center = "alianza_francesa"
-            movie_obj.source_url = page.url
-
-            return movie_obj
+            return Movie(
+                title=movie_title,
+                location=location,
+                date=movie_date,
+                center="af",
+                poster_url=poster_url,
+                source_url=page.url,
+            )
         except Exception as e:
             print(e)
-
-    @staticmethod
-    async def _enter_movie_page(locator: int, page: Page, free_movies: Locator):
-        await free_movies.locator("a.btn-outline-primary").nth(locator).click()
-        await page.wait_for_load_state("domcontentloaded")
 
     def _parse_date_string(self, date_str: str) -> datetime | None:
         try:
