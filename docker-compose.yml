@@ -1,15 +1,14 @@
 services:
-  postgres:
-    image: postgres:15
-    container_name: movies_db
-    environment:
-      POSTGRES_DB: movies_db
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  ministack:
+    image: ministackorg/ministack
+    container_name: ministack
     ports:
-      - "5432:5432"
+      - "4566:4566"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - REDIS_HOST=redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

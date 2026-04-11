@@ -1,26 +1,27 @@
-*.db
-.states
-assets/external/
-.web
-*.py[cod]
-
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
-
-# VSCode environment
-.vscode
-
-# Secrets
+# ── Secrets & Local Config ──────────────────────────────────
 .env
+.env.*
+environment.json
 
-# Logs
+# ── Build Artifacts ─────────────────────────────────────────
+**/bootstrap
+*.zip
+/web
+scraper
+
+# ── Python ──────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+
+# ── Node ────────────────────────────────────────────────────
+node_modules/
+
+# ── Tooling & Cache ─────────────────────────────────────────
+.aws-sam/
+.codegraph/
+.agents/
+out.json
+samconfig.toml
 *.log
-*.log.*
+data/

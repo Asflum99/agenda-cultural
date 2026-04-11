@@ -1,0 +1,202 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Agenda Cultural - Serverless Web App
+
+Parameters:
+  OriginVerifySecret:
+    Type: String
+    NoEcho: true
+    Description: Secret header value for origin verification
+    MinLength: 1
+
+Resources:
+  # 1. La tabla de DynamoDB
+  MoviesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Movies
+      AttributeDefinitions:
+        - AttributeName: CenterSlug
+          AttributeType: S
+        - AttributeName: DateTitle
+          AttributeType: S
+      KeySchema:
+        - AttributeName: CenterSlug
+          KeyType: HASH
+        - AttributeName: DateTitle
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ExpiresAt
+
+  # 2. La Función Lambda del Scraper
+  MoviesScraperFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: MoviesScraper
+      CodeUri: .
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          CLOUDFRONT_DISTRIBUTION_ID: !Ref FrontendDistribution
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MoviesTable
+        - SSMParameterReadPolicy:
+            ParameterName: agenda-cultural/tmdb-api-key
+        - Statement:
+          - Sid: CloudFrontInvalidation
+            Effect: Allow
+            Action: cloudfront:CreateInvalidation
+            Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}"
+      Events:
+        DailyCheck:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 6 * * ? *)
+    Metadata:
+      BuildMethod: makefile
+
+  # 3. La Función Lambda del Web Server
+  WebFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: AgendaCulturalWeb
+      CodeUri: .
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - x86_64
+      MemorySize: 256
+      Timeout: 30
+      Environment:
+        Variables:
+          MOVIES_TABLE_NAME: !Ref MoviesTable
+          ORIGIN_VERIFY_SECRET: !Ref OriginVerifySecret
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref MoviesTable
+      Events:
+        HttpApi:
+          Type: HttpApi   # Crea un API Gateway (HTTP API)
+          Properties:
+            Path: /{proxy+}   # Cada ruta activa el Lambda
+            Method: ANY   # Captura cualquier método
+    Metadata:
+      BuildMethod: makefile
+
+  # 6. S3 para archivos estáticos
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-frontend-bucket"
+
+  # 7. Política del bucket para que CloudFront OAC pueda leer
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}"
+
+  # 8. OAC para CloudFront → S3
+  CloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: "Acceso al bucket de S3"
+        Name: !Sub "${AWS::StackName}-OAC"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # 9. Cache policy para HTML (5 min TTL)
+  HtmlCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-html-cache"
+        DefaultTTL: 86400
+        MaxTTL: 86400
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          EnableAcceptEncodingGzip: true
+
+  # 10. Distribución CloudFront
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Origins:
+          - Id: WebLambdaOrigin
+            DomainName: !Sub "${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            OriginCustomHeaders:
+              - HeaderName: X-Origin-Verify
+                HeaderValue: !Ref OriginVerifySecret
+          - Id: FrontendS3Origin
+            DomainName: !GetAtt FrontendBucket.DomainName
+            OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: WebLambdaOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref HtmlCachePolicy
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+        CacheBehaviors:
+          - PathPattern: /css/*
+            TargetOriginId: FrontendS3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+          - PathPattern: /js/*
+            TargetOriginId: FrontendS3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD

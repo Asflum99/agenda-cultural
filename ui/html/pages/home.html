@@ -1,0 +1,15 @@
+{{ define "title" }}Agenda Cultural{{ end }}
+
+{{ define "content" }}
+  <div class="container">
+    <section class="cinema-feed vstack spacing-8">
+      {{ range $centerName, $movies := .Movies }}
+        {{ if $movies }}
+          {{ template
+            "cinema_row" dict "Name" (index $movies 0).CenterName "Movies" $movies
+          }}
+        {{ end }}
+      {{ end }}
+    </section>
+  </div>
+{{ end }}
