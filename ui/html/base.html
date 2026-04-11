@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{{ block "title" . }}Agenda Cultural{{ end }}</title>
+
+    <script src="/js/htmx.min.js"></script>
+    <script src="/js/carousel.js" defer></script>
+    <link rel="stylesheet" href="/css/style.css" />
+
+    {{ block "styles" . }}{{ end }}
+  </head>
+  <body>
+    {{ template "navbar" . }}
+
+
+    <main>
+      {{ block "content" . }}{{ end }}
+    </main>
+  </body>
+</html>

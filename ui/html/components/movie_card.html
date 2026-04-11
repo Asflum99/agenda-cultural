@@ -1,0 +1,54 @@
+{{ define "movie_card" }}
+  <article class="movie-card carousel-item">
+    <div class="card-image-container">
+      {{ if .PosterURL }}
+        <img
+          src="{{ .PosterURL }}"
+          alt="{{ .Title }}"
+          loading="lazy"
+          class="movie-poster"
+        />
+      {{ else }}
+        <div class="poster-placeholder">
+          <div class="vstack spacing-2">
+            <span class="emoji-sad">( ✖ _ ✖ )</span>
+            <span class="text-bold text-gray-300">Se busca</span>
+            <span class="text-xs opacity-70 text-gray-300"
+              >Póster no encontrado</span
+            >
+          </div>
+        </div>
+      {{ end }}
+    </div>
+
+    <div class="card-content vstack">
+      <h2 class="movie-title">{{ .Title }}</h2>
+
+      <div class="data-list">
+        <div class="data-item">
+          <span class="data-label">Fecha:</span>
+          <span class="data-value capitalize">{{ formatDate .Date }}</span>
+        </div>
+
+        <div class="data-item">
+          <span class="data-label">Lugar:</span>
+          <span class="data-value break-word">{{ .Location }}</span>
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <a
+          href="{{ if .SourceURL }}
+            {{ .SourceURL }}
+          {{ else }}
+            #
+          {{ end }}"
+          target="_blank"
+          class="official-link"
+        >
+          Ver sitio oficial
+        </a>
+      </div>
+    </div>
+  </article>
+{{ end }}

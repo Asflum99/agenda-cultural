@@ -1,0 +1,52 @@
+{{ define "cinema_row" }}
+  <div class="cinema-row-container vstack spacing-6">
+    <h2 class="cinema-heading">{{ .Name }}</h2>
+
+    <div class="carousel-wrapper">
+      <button
+        class="carousel-nav-btn carousel-btn-left hidden"
+        aria-label="Scroll left"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <div class="movie-carousel no-scrollbar">
+        {{ range .Movies }}
+          {{ template "movie_card" . }}
+        {{ end }}
+      </div>
+
+      <div class="carousel-fade-left"></div>
+      <div class="carousel-fade-right"></div>
+
+      <button
+        class="carousel-nav-btn carousel-btn-right hidden"
+        aria-label="Scroll right"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+{{ end }}
