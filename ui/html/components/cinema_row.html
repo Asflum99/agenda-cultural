@@ -1,6 +1,10 @@
 {{ define "cinema_row" }}
-  <div class="cinema-row-container vstack spacing-6">
-    <h2 class="cinema-heading">{{ .Name }}</h2>
+  <div class="cinema-row-container">
+    <div class="cinema-heading-wrapper">
+      <h2 class="cinema-heading">{{ .Name }}</h2>
+      <div class="cinema-heading-line"></div>
+      <span class="cinema-heading-count">{{ len .Movies }} película{{ if ne (len .Movies) 1 }}s{{ end }}</span>
+    </div>
 
     <div class="carousel-wrapper">
       <button

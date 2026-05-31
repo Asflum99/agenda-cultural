@@ -1,8 +1,27 @@
 {{ define "title" }}Agenda Cultural{{ end }}
 
 {{ define "content" }}
-  <div class="container">
-    <section class="cinema-feed vstack spacing-8">
+  <div class="hero fade-in">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polygon points="10 8 16 12 10 16 10 8"></polygon>
+        </svg>
+        Cine cultural en Lima
+      </div>
+      <h1 class="hero-title">
+        Tu guía de <span class="accent">cine alternativo</span> en Lima
+      </h1>
+      <p class="hero-subtitle">
+        La cartelera de los centros culturales más importantes de la ciudad, todo en un solo lugar.
+      </p>
+      <hr class="hero-divider" />
+    </div>
+  </div>
+
+  <div class="container fade-in fade-in-delay-1">
+    <section class="cinema-feed">
       {{ range $centerName, $movies := .Movies }}
         {{ if $movies }}
           {{ template
