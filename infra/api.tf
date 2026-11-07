@@ -17,9 +17,17 @@ resource "aws_apigatewayv2_integration" "web" {
   payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_route" "proxy" {
+# Cada ruta nueva en internal/webapp/app.go necesita su aws_apigatewayv2_route.
+# Sin ella, API Gateway responde 404 sin invocar la Lambda ni dejar rastro en sus logs.
+resource "aws_apigatewayv2_route" "home" {
   api_id    = aws_apigatewayv2_api.this.id
-  route_key = "ANY /{proxy+}"
+  route_key = "GET /"
+  target    = "integrations/${aws_apigatewayv2_integration.web.id}"
+}
+
+resource "aws_apigatewayv2_route" "about" {
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "GET /acerca-de"
   target    = "integrations/${aws_apigatewayv2_integration.web.id}"
 }
 
