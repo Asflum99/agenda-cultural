@@ -3,15 +3,14 @@
 ## Commands
 
 ```bash
-just run-web          # Run Go web server on :8080
-just setup-db         # Start Docker Compose + create DynamoDB tables
-just create-function  # Build Lambda binary and deploy to localstack
-just delete-function  # Remove Lambda from localstack
-just invoke-lambda    # Test Lambda function (output in out.json)
-just list-movies      # Query Movies table from DynamoDB
-just setup-ui         # Download htmx.min.js
-just deploy-static    # Sync CSS/JS to S3 bucket
-just invalidate-cache # Invalidate CloudFront cache
+mise run run-web          # Run Go web server on :8080
+mise run create_db        # Start Docker Compose + create DynamoDB tables
+mise run create-function  # Build Lambda binary and deploy to localstack
+mise run invoke-lambda    # Test Lambda function (output in out.json)
+mise run deploy-static    # Sync CSS/JS to S3 bucket
+mise run build-lambdas    # Build Go Lambda binaries (infra/build/)
+mise run tf-plan          # Ver el plan de infraestructura
+mise run deploy           # Build Lambdas y aplicar la infraestructura con OpenTofu
 ```
 
 ## Environment
@@ -19,8 +18,7 @@ just invalidate-cache # Invalidate CloudFront cache
 - **Go**: 1.25, modules
 - **Python**: 3.13, uv for dependency management
 - **Docker**: Uses `ministackorg/ministack` for localstack + redis
-- **Local dev**: Requires `.env` file with `TMDB_API_KEY`, `AWS_REGION`, `DYNAMODB_ENDPOINT`
-- **Local Lambda**: Requires `environment.json` with `DYNAMODB_ENDPOINT: "http://ministack:4566"` and `TMDB_API_KEY`
+- **Local dev**: Uses `mise.local.toml` for env vars (`TMDB_API_KEY`, `AWS_REGION`, `DYNAMODB_ENDPOINT`)
 
 ## Architecture
 
@@ -29,17 +27,16 @@ just invalidate-cache # Invalidate CloudFront cache
 - **internal/scraper**: Scraper implementations (BNP, Britanico, LUM) using colly
 - **internal/webapp**: Web application logic (routes, handlers, template rendering)
 - **internal/models**: Shared data structures (Movie)
-- **internal/storage**: S3 repository for JSON storage
-- **ui/html/**: Go templates (base, navbar, footer, movie_card, cinema_row, pages)
-- **ui/static/**: CSS (style.css), JS (htmx.min.js, carousel.js)
+- **ui/html/**: Go templates with `components/` (navbar, footer, movie_card, cinema_row) and `pages/` (home, about)
+- **ui/static/**: CSS (`css/style.css`), JS (`js/htmx.min.js`, `js/carousel.js`)
 
 ## Key Files
 
-- `justfile` - All dev commands
+- `mise.toml` - Task runner config (dev + deploy commands)
+- `mise.local.toml` - Local environment variables (not committed)
+- `mise-tasks/` - Task scripts (create_db.py, create-function.sh)
 - `docker-compose.yml` - Localstack + Redis services
-- `template.yaml` - SAM/CloudFormation infrastructure (DynamoDB, Lambdas, CloudFront, S3)
-- `environment.json` - Local Lambda environment variables (not committed)
-- `.env` - Local environment variables (not committed)
+- `infra/` - infraestructura en OpenTofu (DynamoDB, Lambdas, API Gateway, CloudFront, S3, CNAME de Cloudflare)
 
 ## Frontend
 
@@ -53,21 +50,24 @@ just invalidate-cache # Invalidate CloudFront cache
 ## Deployment
 
 ```bash
-# Build and deploy all infrastructure
-sam build --clean
-sam deploy --guided
+# (una vez) el bucket de state `agenda-cultural-tfstate` debe existir en S3
+cd infra && tofu init
+
+# Build Lambdas + plan/apply de infraestructura (recursos en infra/*.tf)
+mise run tf-plan
+mise run deploy
 
 # Deploy static assets to S3
-just deploy-static
-
-# Invalidate CloudFront cache
-just invalidate-cache
+mise run deploy-static
 ```
+
+Valores sensibles en `mise.local.toml` (`[env]`): `TF_VAR_certificate_arn`,
+`TF_VAR_origin_verify_secret`, `CLOUDFLARE_API_TOKEN`.
 
 ## Notes
 
 - Go templates use `prettier-plugin-go-template` for formatting
 - Lambda functions use `provided.al2023` runtime (custom Go binary)
 - DynamoDB table `Movies` uses TTL on `ExpiresAt` for automatic cleanup
-- TMDB API key stored in SSM Parameter Store for production, `.env` for local
+- TMDB API key stored in SSM Parameter Store for production, `mise.local.toml` for local
 - CloudFront caches HTML for 24h; static assets use AWS managed cache policy
