@@ -26,7 +26,6 @@ import (
 	cftypes "github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/joho/godotenv"
 )
 
 var dbClient *dynamodb.Client
@@ -164,11 +163,6 @@ func HandleRequest(ctx context.Context) (string, error) {
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("Error cargando el archivo .env")
-	}
-
 	initDB(context.Background())
 
 	lambda.Start(HandleRequest)

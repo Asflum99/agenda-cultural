@@ -20,16 +20,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	if os.Getenv("AWS_LAMBDA_RUNTIME_API") == "" {
-		if err := godotenv.Load(); err != nil {
-			log.Fatal("Error: se requiere archivo .env para desarrollo local")
-		}
-	}
-
 	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
 		log.Fatal(err)
