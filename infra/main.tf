@@ -134,6 +134,17 @@ resource "aws_iam_role_policy" "scraper" {
 
 # ── Lambdas ───────────────────────────────────────────────────────────────
 
+# Creados antes que las funciones para evitar que Lambda los cree sin retención.
+resource "aws_cloudwatch_log_group" "web" {
+  name              = "/aws/lambda/AgendaCulturalWeb"
+  retention_in_days = 7
+}
+
+resource "aws_cloudwatch_log_group" "scraper" {
+  name              = "/aws/lambda/MoviesScraper"
+  retention_in_days = 7
+}
+
 data "archive_file" "web" {
   type        = "zip"
   source_file = "build/web/bootstrap"
@@ -147,7 +158,7 @@ resource "aws_lambda_function" "web" {
   handler          = "bootstrap"
   architectures    = ["x86_64"]
   memory_size      = 256
-  timeout          = 30
+  timeout          = 5
   filename         = data.archive_file.web.output_path
   source_code_hash = data.archive_file.web.output_base64sha256
 
@@ -157,6 +168,8 @@ resource "aws_lambda_function" "web" {
       ORIGIN_VERIFY_SECRET = var.origin_verify_secret
     }
   }
+
+  depends_on = [aws_cloudwatch_log_group.web]
 }
 
 data "archive_file" "scraper" {
@@ -181,6 +194,8 @@ resource "aws_lambda_function" "scraper" {
       CLOUDFRONT_DISTRIBUTION_ID = aws_cloudfront_distribution.this.id
     }
   }
+
+  depends_on = [aws_cloudwatch_log_group.scraper]
 }
 
 # ── EventBridge (scraper diario) ──────────────────────────────────────────
