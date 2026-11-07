@@ -1,0 +1,43 @@
+[tasks.run-web]
+description = 'Run the web'
+env = { AWS_REGION = "us-east-1" }
+run = "go run ./cmd/web"
+
+[tasks.invoke-lambda]
+description = 'Invoke Lambda function'
+run = 'awslocal lambda invoke --function-name scraper out.json'
+
+[tasks.deploy-static]
+description = 'Deploy static files to AWS'
+run = [
+  'aws s3 sync css/ s3://{{env.PROD_FRONTEND_BUCKET}}/css/ --delete',
+  'aws s3 sync js/ s3://{{env.PROD_FRONTEND_BUCKET}}/js/ --delete',
+]
+dir = 'ui/static'
+
+[tasks.build-lambdas]
+description = 'Build Go Lambda binaries'
+run = [
+  'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -tags lambda.norpc -o infra/build/scraper/bootstrap ./cmd/scraper',
+  'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o infra/build/web/bootstrap ./cmd/web',
+  'chmod +x infra/build/scraper/bootstrap infra/build/web/bootstrap',
+]
+
+[tasks.tf-plan]
+description = 'Ver el plan de infraestructura'
+depends = ['build-lambdas']
+dir = 'infra'
+run = 'tofu plan'
+
+[tasks.deploy]
+description = 'Build Lambdas y aplicar la infraestructura con OpenTofu'
+depends = ['build-lambdas']
+dir = 'infra'
+run = 'tofu apply'
+
+[tasks.invoke-scraper]
+description = 'Ejecutar el scraper en AWS y mostrar la respuesta'
+run = 'aws lambda invoke --function-name MoviesScraper out.json && cat out.json'
+
+[tools]
+opentofu = "1.13.2"

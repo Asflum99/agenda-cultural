@@ -17,7 +17,6 @@ require (
 	github.com/cyruzin/golang-tmdb v1.9.2
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/gocolly/colly/v2 v2.3.0
-	github.com/joho/godotenv v1.5.1
 	golang.org/x/text v0.35.0
 )
 

@@ -1,35 +1,37 @@
-import argparse
+#!/usr/bin/env -S uv run
+#MISE description="Setup db"
+
 import os
+import subprocess
+import time
 
 import boto3
 from botocore.exceptions import ClientError
-from dotenv import load_dotenv
+
+# Infraestructura
+subprocess.run(["docker", "compose", "down", "-v"], check=True)
+subprocess.run(["docker", "compose", "up", "-d"], check=True)
+time.sleep(1)
 
 
 def setup_movies_table():
-    parser = argparse.ArgumentParser(
-        description="Configurar la tabla de DynamoDB para Movies."
-    )
-    parser.add_argument(
-        "--env",
-        choices=["local", "prod"],
-        required=True,
-        help="Entorno de ejecución: 'local' o 'prod' (AWS)",
-    )
-    args = parser.parse_args()
+    region = os.getenv("AWS_REGION", "us-east-1")
+    endpoint = os.getenv("DYNAMODB_ENDPOINT")
 
-    load_dotenv()
-    region = os.getenv(
-        "AWS_REGION", "us-east-1"
-    )
-
-    if args.env == "local":
-        endpoint = os.getenv("DYNAMODB_ENDPOINT", "http://localhost:4566")
+    if endpoint:
         print(f"🔧 Configurando entorno LOCAL usando el endpoint: {endpoint}")
-        db = boto3.client("dynamodb", endpoint_url=endpoint, region_name=region)
+        db = boto3.client(
+            "dynamodb",
+            endpoint_url=endpoint,
+            region_name=region,
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
+        )
+        env = "local"
     else:
         print(f"☁️ Configurando entorno de PRODUCCIÓN en AWS (Región: {region})")
         db = boto3.client("dynamodb", region_name=region)
+        env = "prod"
 
     try:
         print("🚀 Creando tabla 'Movies'...")
@@ -57,13 +59,11 @@ def setup_movies_table():
             TimeToLiveSpecification={"Enabled": True, "AttributeName": "ExpiresAt"},
         )
 
-        print(f"✅ Tabla creada con éxito en el entorno [{args.env.upper()}].")
+        print(f"✅ Tabla creada con éxito en el entorno {env}.")
 
     except ClientError as e:
         if e.response["Error"]["Code"] == "ResourceInUseException":
-            print(
-                f"⚠️ La tabla 'Movies' ya existe en [{args.env.upper()}]. No se realizaron cambios."
-            )
+            print(f"⚠️ La tabla 'Movies' ya existe en {env}. No se realizaron cambios.")
         else:
             print(f"❌ Error inesperado: {e}")
 
