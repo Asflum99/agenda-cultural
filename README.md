@@ -122,7 +122,6 @@ Los valores por cuenta van en `mise.local.toml` (no commiteado):
 ```toml
 [env]
 TF_VAR_certificate_arn = "arn:aws:acm:us-east-1:...:certificate/..."
-TF_VAR_origin_verify_secret = "<openssl rand -hex 32>"
 CLOUDFLARE_API_TOKEN = "<token con Zone:Read + DNS:Edit>"
 ```
 

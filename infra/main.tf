@@ -164,12 +164,41 @@ resource "aws_lambda_function" "web" {
 
   environment {
     variables = {
-      MOVIES_TABLE_NAME    = aws_dynamodb_table.movies.name
-      ORIGIN_VERIFY_SECRET = var.origin_verify_secret
+      MOVIES_TABLE_NAME = aws_dynamodb_table.movies.name
     }
   }
 
   depends_on = [aws_cloudwatch_log_group.web]
+}
+
+# Endpoint privado: solo CloudFront lo invoca, firmando con SigV4 vía OAC.
+# Un request sin firma válida recibe 403 antes de ejecutar la función.
+resource "aws_lambda_function_url" "web" {
+  function_name      = aws_lambda_function.web.function_name
+  authorization_type = "AWS_IAM"
+}
+
+# Lambda exige los dos permisos para function URLs creadas desde octubre 2025.
+resource "aws_lambda_permission" "url_invoke" {
+  statement_id           = "AllowCloudFrontInvokeUrl"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.web.function_name
+  principal              = "cloudfront.amazonaws.com"
+  source_arn             = aws_cloudfront_distribution.this.arn
+  function_url_auth_type = "AWS_IAM"
+
+  depends_on = [aws_lambda_function_url.web]
+}
+
+resource "aws_lambda_permission" "url_function" {
+  statement_id             = "AllowCloudFrontInvokeFunction"
+  action                   = "lambda:InvokeFunction"
+  function_name            = aws_lambda_function.web.function_name
+  principal                = "cloudfront.amazonaws.com"
+  source_arn               = aws_cloudfront_distribution.this.arn
+  invoked_via_function_url = true
+
+  depends_on = [aws_lambda_function_url.web]
 }
 
 data "archive_file" "scraper" {
