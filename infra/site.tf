@@ -49,6 +49,36 @@ resource "aws_cloudfront_cache_policy" "html" {
   }
 }
 
+# HSTS y headers de seguridad en todas las respuestas, incluidos los estáticos
+# que sirve S3. `override = false` deja que el HTML conserve los que pone Go.
+resource "aws_cloudfront_response_headers_policy" "security" {
+  name = "agenda-cultural-security-headers"
+
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 31536000
+      include_subdomains         = false
+      preload                    = false
+      override                   = true
+    }
+
+    # El único valor que existe es nosniff, se asume por defecto
+    content_type_options {
+      override = false
+    }
+
+    frame_options {
+      frame_option = "DENY"
+      override     = false
+    }
+
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = false
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "this" {
   enabled     = true
   aliases     = [var.domain_name]
@@ -74,29 +104,32 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   default_cache_behavior {
-    target_origin_id       = "web"
-    viewer_protocol_policy = "redirect-to-https"
-    cache_policy_id        = aws_cloudfront_cache_policy.html.id
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id           = "web"
+    viewer_protocol_policy     = "redirect-to-https"
+    cache_policy_id            = aws_cloudfront_cache_policy.html.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD", "OPTIONS"]
   }
 
   ordered_cache_behavior {
-    path_pattern           = "/css/*"
-    target_origin_id       = "s3"
-    viewer_protocol_policy = "redirect-to-https"
-    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
+    path_pattern               = "/css/*"
+    target_origin_id           = "s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
   }
 
   ordered_cache_behavior {
-    path_pattern           = "/js/*"
-    target_origin_id       = "s3"
-    viewer_protocol_policy = "redirect-to-https"
-    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
+    path_pattern               = "/js/*"
+    target_origin_id           = "s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
   }
 
   viewer_certificate {
