@@ -3,7 +3,7 @@
 //
 //   - Local: servidor HTTP estándar en localhost:8080 (go run ./cmd/web/)
 //   - Producción: función Lambda adaptada con aws-lambda-go-api-proxy,
-//     invocada por API Gateway a través de CloudFront.
+//     invocada por CloudFront a través de una Lambda Function URL privada.
 //
 // Inicializa el cliente de DynamoDB y delega el enrutamiento y
 // renderizado al paquete internal/webapp.

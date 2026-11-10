@@ -6,8 +6,8 @@ output "distribution_id" {
   value = aws_cloudfront_distribution.this.id
 }
 
-output "api_endpoint" {
-  value = aws_apigatewayv2_api.this.api_endpoint
+output "web_function_url" {
+  value = aws_lambda_function_url.web.function_url
 }
 
 output "frontend_bucket" {

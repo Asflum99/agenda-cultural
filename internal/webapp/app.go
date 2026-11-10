@@ -65,7 +65,6 @@ func (app *Application) Routes() http.Handler {
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(app.originVerify)
 	r.Use(app.securityHeaders)
 
 	r.Get("/", app.homeHandler)
@@ -96,17 +95,6 @@ func (app *Application) securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (app *Application) originVerify(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		secret := os.Getenv("ORIGIN_VERIFY_SECRET")
-		if secret != "" && r.Header.Get("X-Origin-Verify") != secret {
-			http.Error(w, "Forbidden", 403)
-			return
-		}
 		next.ServeHTTP(w, r)
 	})
 }

@@ -61,8 +61,8 @@ mise run deploy
 mise run deploy-static
 ```
 
-Valores sensibles en `mise.local.toml` (`[env]`): `TF_VAR_certificate_arn`,
-`TF_VAR_origin_verify_secret`, `CLOUDFLARE_API_TOKEN`.
+Valores sensibles en `mise.local.toml` (`[env]`): `TF_VAR_certificate_arn`
+y `CLOUDFLARE_API_TOKEN`.
 
 ## Notes
 

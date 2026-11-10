@@ -18,6 +18,13 @@ resource "aws_cloudfront_origin_access_control" "this" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_origin_access_control" "lambda" {
+  name                              = "agenda-cultural-lambda-oac"
+  origin_access_control_origin_type = "lambda"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 # Mismo TTL que la cache policy del stack CDK: 1 día, sin cookies/headers/query.
 resource "aws_cloudfront_cache_policy" "html" {
   name        = "agenda-cultural-html-cache"
@@ -48,19 +55,15 @@ resource "aws_cloudfront_distribution" "this" {
   price_class = "PriceClass_All"
 
   origin {
-    domain_name = replace(aws_apigatewayv2_api.this.api_endpoint, "https://", "")
-    origin_id   = "api"
+    domain_name              = trimsuffix(trimprefix(aws_lambda_function_url.web.function_url, "https://"), "/")
+    origin_id                = "web"
+    origin_access_control_id = aws_cloudfront_origin_access_control.lambda.id
 
     custom_origin_config {
       http_port              = 80
       https_port             = 443
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
-    }
-
-    custom_header {
-      name  = "X-Origin-Verify"
-      value = var.origin_verify_secret
     }
   }
 
@@ -71,7 +74,7 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   default_cache_behavior {
-    target_origin_id       = "api"
+    target_origin_id       = "web"
     viewer_protocol_policy = "redirect-to-https"
     cache_policy_id        = aws_cloudfront_cache_policy.html.id
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]

@@ -8,12 +8,6 @@ variable "certificate_arn" {
   type        = string
 }
 
-variable "origin_verify_secret" {
-  description = "Header que CloudFront manda a API Gateway para validar el origen"
-  type        = string
-  sensitive   = true
-}
-
 variable "domain_name" {
   type    = string
   default = "agendacultural.qzz.io"
