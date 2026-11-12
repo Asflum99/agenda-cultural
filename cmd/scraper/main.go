@@ -157,7 +157,7 @@ func HandleRequest(ctx context.Context) (string, error) {
 
 	saveToDynamoDB(ctx, allMovies)
 
-	go invalidateCloudFrontCache(ctx)
+	invalidateCloudFrontCache(ctx)
 
 	return fmt.Sprintf("Éxito: %d películas procesadas", len(allMovies)), nil
 }
