@@ -20,7 +20,7 @@ Agenda Cultural recopila automáticamente la programación gratuita de cine de d
 - Go 1.25+
 - Docker
 - Python 3.13+ con `uv`
-- [Just](https://github.com/casey/just) (task runner)
+- [mise](https://mise.jdx.dev) (task runner y toolchain)
 
 ### Configuración
 
@@ -29,46 +29,37 @@ Agenda Cultural recopila automáticamente la programación gratuita de cine de d
 git clone https://github.com/asflum99/agenda-cultural.git
 cd agenda-cultural
 
-# 2. Crear archivo .env con tus credenciales
-cat > .env << EOF
-TMDB_API_KEY=tu_api_key_aqui
-DYNAMODB_ENDPOINT=http://localhost:4566
-AWS_REGION=us-east-1
+# 2. Crear mise.local.toml con tus credenciales
+cat > mise.local.toml << EOF
+[env]
+TMDB_API_KEY = "tu_api_key_aqui"
+DYNAMODB_ENDPOINT = "http://localhost:4566"
+AWS_REGION = "us-east-1"
 EOF
 
 # 3. Iniciar localstack y crear tablas de DynamoDB
-just setup-db
+mise run create_db
 
 # 4. Ejecutar el servidor web
-just run-web
+mise run run-web
 ```
 
 El servidor estará disponible en `http://localhost:8080`.
 
+`mise.local.toml` está en `.gitignore` y mise lo carga automáticamente junto a
+`mise.toml`: no hay que declararlo ni exportar variables a mano.
+
 ### Ejecutar el Scraper Localmente
 
 ```bash
-# 1. Crear environment.json para el Lambda
-cat > environment.json << EOF
-{
-  "Variables": {
-    "DYNAMODB_ENDPOINT": "http://ministack:4566",
-    "AWS_REGION": "us-east-1",
-    "MOVIES_TABLE_NAME": "Movies",
-    "CLOUDFRONT_DISTRIBUTION_ID": "",
-    "TMDB_API_KEY": "tu_api_key_aqui"
-  }
-}
-EOF
+# 1. Construir y desplegar el Lambda en localstack
+mise run create-function
 
-# 2. Construir y desplegar el Lambda en localstack
-just create-function
+# 2. Ejecutar el scraper
+mise run invoke-lambda
 
-# 3. Ejecutar el scraper
-just invoke-lambda
-
-# 4. Ver las películas guardadas
-just list-movies
+# 3. Ver las películas guardadas
+awslocal dynamodb scan --table-name Movies --output table
 ```
 
 ## Arquitectura
@@ -100,22 +91,38 @@ cmd/
 internal/
 ├── models/           # Estructuras de datos
 ├── scraper/          # Implementaciones de scrapers
-├── storage/          # Repositorio S3
 └── webapp/           # Lógica web (rutas, handlers)
 ui/
 ├── html/             # Plantillas Go
 └── static/           # CSS y JS
-scripts/
-└── create_db.py      # Script para crear tablas DynamoDB
+infra/                # Infraestructura en OpenTofu
+mise-tasks/
+├── create_db.py         # Crea las tablas de DynamoDB en localstack
+└── create-function.sh   # Compila y despliega el Lambda en localstack
 ```
 
 ## Despliegue
 
-### Infraestructura (SAM)
+### Infraestructura (OpenTofu)
+
+La infraestructura se define con OpenTofu en `infra/`, y todo pasa por tareas
+de mise:
 
 ```bash
-sam build
-sam deploy --guided
+# 1. (una vez) el bucket de state `agenda-cultural-tfstate` debe existir en S3
+cd infra && tofu init
+
+# 2. Compilar Lambdas y desplegar
+mise run tf-plan   # review del plan
+mise run deploy    # corre build-lambdas y `tofu apply` en infra/
+```
+
+Los valores por cuenta van en `mise.local.toml` (no commiteado):
+
+```toml
+[env]
+TF_VAR_certificate_arn = "arn:aws:acm:us-east-1:...:certificate/..."
+CLOUDFLARE_API_TOKEN = "<token con Zone:Read + DNS:Edit>"
 ```
 
 Esto crea:
@@ -124,15 +131,13 @@ Esto crea:
 - Lambda Web (API Gateway + CloudFront)
 - Bucket S3 para archivos estáticos
 - Distribución CloudFront con cache behaviors
+- CNAME de Cloudflare apuntando a la distribución
 
 ### Archivos Estáticos
 
 ```bash
 # Subir CSS y JS a S3
-just deploy-static
-
-# Invalidar cache de CloudFront
-just invalidate-cache
+mise run deploy-static
 ```
 
 ## Tecnologías
@@ -140,7 +145,7 @@ just invalidate-cache
 - **Backend**: Go 1.25, chi router, aws-lambda-go
 - **Scraper**: Colly (web scraping), goquery
 - **Base de datos**: DynamoDB (TTL automático)
-- **Infraestructura**: AWS SAM, CloudFront, S3, EventBridge
+- **Infraestructura**: OpenTofu, CloudFront, S3, EventBridge, API Gateway, Cloudflare DNS
 - **Frontend**: Go templates, CSS custom properties, htmx, vanilla JS
 - **Tipografía**: DM Serif Display, Source Sans 3 (Google Fonts)
 

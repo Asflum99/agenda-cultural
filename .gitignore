@@ -1,13 +1,11 @@
 # ── Secrets & Local Config ──────────────────────────────────
-.env
-.env.*
-environment.json
+mise.local.toml
 
 # ── Build Artifacts ─────────────────────────────────────────
 **/bootstrap
 *.zip
 /web
-scraper
+/scraper
 
 # ── Python ──────────────────────────────────────────────────
 .venv/
@@ -17,11 +15,16 @@ __pycache__/
 # ── Node ────────────────────────────────────────────────────
 node_modules/
 
+# ── OpenTofu ────────────────────────────────────────────────
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/build/
+
 # ── Tooling & Cache ─────────────────────────────────────────
-.aws-sam/
 .codegraph/
 .agents/
 out.json
-samconfig.toml
 *.log
 data/

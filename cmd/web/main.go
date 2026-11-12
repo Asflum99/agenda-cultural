@@ -3,7 +3,7 @@
 //
 //   - Local: servidor HTTP estándar en localhost:8080 (go run ./cmd/web/)
 //   - Producción: función Lambda adaptada con aws-lambda-go-api-proxy,
-//     invocada por API Gateway a través de CloudFront.
+//     invocada por CloudFront a través de una Lambda Function URL privada.
 //
 // Inicializa el cliente de DynamoDB y delega el enrutamiento y
 // renderizado al paquete internal/webapp.
@@ -20,16 +20,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	if os.Getenv("AWS_LAMBDA_RUNTIME_API") == "" {
-		if err := godotenv.Load(); err != nil {
-			log.Fatal("Error: se requiere archivo .env para desarrollo local")
-		}
-	}
-
 	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
 		log.Fatal(err)
